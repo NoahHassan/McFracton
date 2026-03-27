@@ -70,6 +70,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>core/include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>core/include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -127,7 +133,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="core\include\System.cpp" />
+    <ClCompile Include="core\src\McMachine.cpp" />
+    <ClCompile Include="core\src\XYSquare.cpp" />
+    <ClCompile Include="gui\Main.cpp" />
+    <ClCompile Include="gui\Shape.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="core\include\McMachine.h" />
+    <ClInclude Include="core\include\System.h" />
+    <ClInclude Include="core\include\Timer.h" />
+    <ClInclude Include="core\include\Vec2D.h" />
+    <ClInclude Include="core\include\XYSquare.h" />
+    <ClInclude Include="gui\Canvas.h" />
+    <ClInclude Include="gui\Shape.h" />
+    <ClInclude Include="gui\Square.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
