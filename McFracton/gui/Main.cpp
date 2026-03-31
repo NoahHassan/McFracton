@@ -1,4 +1,7 @@
 #include <SFML/Graphics.hpp>
+#include <imgui.h>
+#include <imgui-SFML.h>
+
 #include <iostream>
 
 #include "Canvas.h"
@@ -10,27 +13,40 @@ int main() {
 
 	using namespace sf;
 
-	RenderWindow window(VideoMode(1200, 800), "Simulation");
+	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
+	if (!ImGui::SFML::Init(window))
+		return -1;
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->Clear();
+	io.Fonts->AddFontFromFileTTF("DMSans-VariableFont_opsz,wght.ttf", 22.0f);
+	ImGui::SFML::UpdateFontTexture();
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.ScaleAllSizes(1.5f);
 
 	XYSquare squareLattice(80);
-	Canvas canvas(window);
-	canvas.Initialize(squareLattice, 7.0);
+	Canvas canvas(window, { 200.0f, 0.0f });
+	canvas.Initialize(squareLattice, 12.0);
 
 	McMachine::NumericalParams params(
 		100.0, 0.1, 0.1
 	);
 	McMachine machine(params, squareLattice);
 
-	bool draw_vortices = true;
+	bool draw_vortices = false;
 
-	Timer timer;
-	double temperature = 100.0;
+	sf::Clock clock;
+	Int32 elapsedTime = 0;
+
+	float temperature = 10.0;
 	while (window.isOpen())
 	{
 		Event e;
 		while (window.pollEvent(e))
 		{
+			ImGui::SFML::ProcessEvent(window, e);
 			if (e.type == Event::KeyPressed)
 			{
 				if (e.key.code == Keyboard::Key::Enter)
@@ -40,12 +56,12 @@ int main() {
 
 				if (e.key.code == Keyboard::Key::Up)
 				{
-					temperature *= 1.0 / 0.9;
+					temperature *= 1.0f / 0.9f;
 					std::cout << temperature << std::endl;
 				}
 				else if (e.key.code == Keyboard::Key::Down)
 				{
-					temperature *= 0.9;
+					temperature *= 0.9f;
 					std::cout << temperature << std::endl;
 				}
 
@@ -64,39 +80,29 @@ int main() {
 			}
 		}
 
-		machine.Sweep(5000, temperature);
+		sf::Time dt = clock.restart();
+		elapsedTime += dt.asMilliseconds();
 
-		if (timer.elapsed() >= 1.0f / 30.0f)
-		{
-			if (draw_vortices)
-				canvas.Draw(squareLattice, squareLattice.getVortices());
-			else
-				canvas.Draw(squareLattice);
-			timer.reset();
-		}
+		ImGui::SFML::Update(window, dt);
+
+		ImGui::Begin("Hello, world!");
+		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.3f");
+		ImGui::Checkbox("Vortices", &draw_vortices);
+		ImGui::End();
+
+		window.clear();
+
+		if (draw_vortices)
+			canvas.Draw(squareLattice, squareLattice.getVortices());
+		else
+			canvas.Draw(squareLattice);
+
+		ImGui::SFML::Render(window);
+		window.display();
+
+		machine.Sweep(5000, (double)temperature);
 
 	}
 
 	return 0;
-
-	/*
-	Pseudo-Code for how the Code should work:
-
-	define Lattice
-	Lattice contains:
-	  - site fields (exposed as index)
-	  - plaquette fields (exposed as index)
-	  - float proposeFlip() (returns energy difference)
-	  - getEnergy() (returns complete energy)
-	  - internally has a function or a struct mapping a site/plaquette
-	    to connected objects that will be affected
-
-	initialize McMachine(Params, Lattice)
-	McMachine contains:
-	  - Params struct (t_max, t_min, sweeps, etc.)
-	  - internally: proposes Flips and updates them
-
-	optional drawing stuff
-	draw(Lattice)
-	*/
 }

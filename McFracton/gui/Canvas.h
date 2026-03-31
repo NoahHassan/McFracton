@@ -13,6 +13,10 @@ public:
 		:
 		window(window)
 	{}
+	Canvas(sf::RenderWindow& window, Vec2D offset)
+		:
+		window(window), offset(offset)
+	{}
 	void Initialize(const XYSquare& field, float square_size)
 	{
 		site_pixels = std::vector<Square>(field.nSites);
@@ -25,7 +29,7 @@ public:
 				Vec2D(
 					square_size * (nx - field.length / 2) + window.getSize().x / 2, 
 					square_size * (ny - field.length / 2) + window.getSize().y / 2
-				),
+				) + offset,
 				square_size
 			);
 
@@ -42,7 +46,6 @@ public:
 		{
 			window.draw(sq);
 		}
-		window.display();
 	}
 	void Draw(const XYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices)
 	{
@@ -52,7 +55,6 @@ public:
 		{
 			window.draw(sq);
 		}
-		window.display();
 	}
 private:
 	void UpdateFieldColors(const XYSquare& field)
@@ -63,8 +65,8 @@ private:
 		{
 			const double& theta = field.getSite(n);
 
-			//site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.4, 0.8));
-			site_pixels[n].SetFillColor(GreenRedUniform(theta));
+			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
+			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
 	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices)
@@ -93,8 +95,8 @@ private:
 	{
 		double lightAngle = intensity * (1.0 + cos(2.0 * PI * (theta - tilt))) / 0.5;
 
-		sf::Uint8 r = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 125));
-		sf::Uint8 g = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 125));
+		sf::Uint8 r = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 90));
+		sf::Uint8 g = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 60));
 		sf::Uint8 b = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 20));
 
 		return sf::Color(r, g, b);
@@ -102,4 +104,5 @@ private:
 private:
 	sf::RenderWindow& window;
 	std::vector<Square> site_pixels;
+	Vec2D offset{ 0.0f, 0.0f };
 };
