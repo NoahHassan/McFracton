@@ -27,7 +27,7 @@
     <ClCompile Include="gui\Shape.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="core\include\System.cpp">
+    <ClCompile Include="core\src\System.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -54,6 +54,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="gui\Square.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\BufferedArray.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

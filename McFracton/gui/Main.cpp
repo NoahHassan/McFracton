@@ -13,6 +13,12 @@ int main() {
 
 	using namespace sf;
 
+	XYSquare squareLattice(80);
+	McMachine::NumericalParams params;
+	McMachine machine(params, squareLattice, "data.txt");
+
+	machine.StartSimulation();
+
 	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
 	if (!ImGui::SFML::Init(window))
@@ -26,53 +32,23 @@ int main() {
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(1.5f);
 
-	XYSquare squareLattice(80);
 	Canvas canvas(window, { 200.0f, 0.0f });
 	canvas.Initialize(squareLattice, 12.0);
 
-	McMachine::NumericalParams params(
-		100.0, 0.1, 0.1
-	);
-	McMachine machine(params, squareLattice);
-
 	bool draw_vortices = false;
+	bool plot_energies = false;
 
 	sf::Clock clock;
 	Int32 elapsedTime = 0;
 
 	float temperature = 10.0;
+	BufferedArray energies(100);
 	while (window.isOpen())
 	{
 		Event e;
 		while (window.pollEvent(e))
 		{
 			ImGui::SFML::ProcessEvent(window, e);
-			if (e.type == Event::KeyPressed)
-			{
-				if (e.key.code == Keyboard::Key::Enter)
-				{
-					std::cout << squareLattice.getEnergy() << std::endl;
-				}
-
-				if (e.key.code == Keyboard::Key::Up)
-				{
-					temperature *= 1.0f / 0.9f;
-					std::cout << temperature << std::endl;
-				}
-				else if (e.key.code == Keyboard::Key::Down)
-				{
-					temperature *= 0.9f;
-					std::cout << temperature << std::endl;
-				}
-
-				if (e.key.code == Keyboard::Key::Left)
-				{
-				}
-				else if (e.key.code == Keyboard::Key::Right)
-				{
-					draw_vortices = !draw_vortices;
-				}
-			}
 
 			if (e.type == Event::Closed)
 			{
@@ -88,6 +64,18 @@ int main() {
 		ImGui::Begin("Hello, world!");
 		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.3f");
 		ImGui::Checkbox("Vortices", &draw_vortices);
+		ImGui::Checkbox("Plot Energy", &plot_energies);
+		if(plot_energies) {
+			ImGui::PlotLines(
+				"Energy",
+				energies.get_data().data(),
+				energies.get_size(),
+				energies.get_offset(),
+				nullptr,
+				energies.get_min(), energies.get_max(),
+				ImVec2(0, 150)
+			);
+		}
 		ImGui::End();
 
 		window.clear();
@@ -102,6 +90,8 @@ int main() {
 
 		machine.Sweep(5000, (double)temperature);
 
+		double current_energy = squareLattice.getEnergy();
+		energies.Push((float)current_energy);
 	}
 
 	return 0;

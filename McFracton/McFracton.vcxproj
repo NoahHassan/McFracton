@@ -110,6 +110,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -124,6 +125,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -133,13 +135,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="core\include\System.cpp" />
+    <ClCompile Include="core\src\System.cpp" />
     <ClCompile Include="core\src\McMachine.cpp" />
     <ClCompile Include="core\src\XYSquare.cpp" />
     <ClCompile Include="gui\Main.cpp" />
     <ClCompile Include="gui\Shape.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="core\include\BufferedArray.h" />
     <ClInclude Include="core\include\McMachine.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\Timer.h" />

@@ -14,6 +14,7 @@ public:
 	virtual void UpdatePlaq(int index, double angle) = 0;
 	double getSite(int index) const;
 	double getPlaq(int index) const;
+	virtual void LogToFile(std::ofstream& outfile) const = 0;
 protected:
 	virtual const std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const = 0;
 	virtual const std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const = 0;

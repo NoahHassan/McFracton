@@ -96,6 +96,12 @@ std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 	return vortices;
 }
 
+void XYSquare::LogToFile(std::ofstream& outfile) const
+{
+	const auto vortexPairs = getVortices();
+	outfile << vortexPairs.size();
+}
+
 const std::pair<std::vector<int>, std::vector<int>> XYSquare::getSiteConnectedCluster(int siteIndex) const
 {
 	int ny = siteIndex / length;

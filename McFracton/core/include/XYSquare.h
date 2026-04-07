@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fstream>
+
 #include "System.h"
 
 class XYSquare : public System {
@@ -13,6 +15,7 @@ public:
 	void UpdateSite(int index, double angle);
 	void UpdatePlaq(int index, double angle);
 	std::vector<std::pair<std::vector<int>, int>> getVortices() const;
+	void LogToFile(std::ofstream& outfile) const;
 public:
 	const int length;
 private:
