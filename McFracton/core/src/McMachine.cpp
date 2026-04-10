@@ -17,7 +17,7 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	logfile = std::ofstream(filename);
 }
 
-void McMachine::Sweep(int nUpdates, double T)
+void McMachine::Sweep(int nUpdates)
 {
 	for (int n = 0; n < nUpdates; n++)
 	{
@@ -25,7 +25,7 @@ void McMachine::Sweep(int nUpdates, double T)
 		double flip_angle = eps_dst(rng);
 		double dE = system.proposeSiteFlip(site_index, flip_angle);
 
-		if (dE < 0.0 || acc_dst(rng) < std::exp(-dE / T))
+		if (dE < 0.0 || acc_dst(rng) < std::exp(-dE))
 		{
 			system.UpdateSite(site_index, flip_angle);
 		}
@@ -41,14 +41,14 @@ void McMachine::StartSimulation()
 
 	std::cout << "Initial Thermalization" << std::endl;
 
-	Thermalize(params.t_max, params.max_therm_sweeps, energies);
+	Thermalize(params.max_therm_sweeps, energies);
 
 	double temperature = params.t_max;
 	while (temperature > params.t_min)
 	{
-		Thermalize(temperature, params.max_therm_sweeps, energies);
+		Thermalize(params.max_therm_sweeps, energies);
 
-		Measure(params.measure_sweeps, temperature);
+		Measure(params.measure_sweeps);
 
 		temperature *= params.t_fac;
 	}
@@ -56,12 +56,12 @@ void McMachine::StartSimulation()
 	logfile.close();
 }
 
-void McMachine::Thermalize(double T, int maxSweeps, BufferedArray& energies)
+void McMachine::Thermalize(int maxSweeps, BufferedArray& energies)
 {
-	std::cout << "Thermalizing at T = " << T << std::endl;
+	//std::cout << "Thermalizing at T = " << T << std::endl;
 	for (int n = 0; n < maxSweeps; n++)
 	{
-		Sweep(params.updates_per_sweep, T);
+		Sweep(params.updates_per_sweep);
 		energies.Push((float)system.getEnergy());
 
 		if (n > energies.get_size())
@@ -69,20 +69,18 @@ void McMachine::Thermalize(double T, int maxSweeps, BufferedArray& energies)
 			float avg = energies.get_average();
 			float dev = energies.get_deviation();
 
-			if (dev < 1.0f * T)
-				return;
+			//if (dev < 1.0f * T)
+			//	return;
 		}
 	}
 }
 
-void McMachine::Measure(int nSweeps, double T)
+void McMachine::Measure(int nSweeps)
 {
-	logfile << T;
-
 	std::cout << "Measuring" << std::endl;
 	for (int n = 0; n < nSweeps; n++)
 	{
-		Sweep(params.updates_per_sweep, T);
+		Sweep(params.updates_per_sweep);
 		
 		logfile << '\t';
 		system.LogToFile(logfile);

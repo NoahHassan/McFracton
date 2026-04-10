@@ -9,8 +9,13 @@
 
 XYSquare::XYSquare(int size)
 	:
-	System(size * size, (size-1) * (size-1)),
-	length(size)
+	XYSquare(size, 1.0f)
+{}
+
+XYSquare::XYSquare(int size, float temperature)
+	:
+	System(size * size, size * size),
+	size(size), temperature(temperature)
 {
 	site_fields = std::vector<double>(nSites);
 	plaq_fields = std::vector<double>(nSites);
@@ -19,23 +24,24 @@ XYSquare::XYSquare(int size)
 double XYSquare::getEnergy() const
 {
 	double energy = 0.0;
-	for (int nx = 0; nx < length; nx++)
+	for (int nx = 0; nx < size; nx++)
 	{
-		for (int ny = 0; ny < length; ny++)
+		for (int ny = 0; ny < size; ny++)
 		{
-			int siteIndex = ny * length + nx;
+			int siteIndex = ny * size + nx;
 
-			int nx_r = (nx + 1) % length;
-			int ny_u = (ny + 1) % length;
+			// No double counting
+			int nx_r = (nx + 1) % size;
+			int ny_u = (ny + 1) % size;
 
-			int i_r = ny * length + nx_r;
-			int i_u = ny_u * length + nx;
+			int i_r = ny * size + nx_r;
+			int i_u = ny_u * size + nx;
 
 			energy += cos(2.0 * PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(2.0 * PI * (site_fields[i_u] - site_fields[siteIndex]));
 		}
 	}
 
-	return -energy;
+	return -energy / temperature;
 }
 
 double XYSquare::proposeSiteFlip(int index, double angle) const
@@ -47,9 +53,7 @@ double XYSquare::proposeSiteFlip(int index, double angle) const
 		flip_energy += cos(2.0 * PI * (site_fields[index] + angle - site_fields[csite])) - cos(2.0 * PI * (site_fields[index] - site_fields[csite]));
 	}
 
-	// flip plaquettes too
-
-	return -flip_energy;
+	return -flip_energy / temperature;
 }
 
 double XYSquare::proposePlaqFlip(int index, double angle) const
@@ -104,30 +108,30 @@ void XYSquare::LogToFile(std::ofstream& outfile) const
 
 const std::pair<std::vector<int>, std::vector<int>> XYSquare::getSiteConnectedCluster(int siteIndex) const
 {
-	int ny = siteIndex / length;
-	int nx = siteIndex - ny * length;
+	int ny = siteIndex / size;
+	int nx = siteIndex - ny * size;
 
-	int nx_r = (nx + 1) % length;
-	int nx_l = (nx - 1 + length) % length;
-	int ny_u = (ny + 1) % length;
-	int ny_d = (ny - 1 + length) % length;
+	int nx_r = (nx + 1) % size;
+	int nx_l = (nx - 1 + size) % size;
+	int ny_u = (ny + 1) % size;
+	int ny_d = (ny - 1 + size) % size;
 
-	int i_u = ny_u * length + nx;
-	int i_r = ny * length + nx_r;
-	int i_d = ny_d * length + nx;
-	int i_l = ny * length + nx_l;
+	int i_u = ny_u * size + nx;
+	int i_r = ny * size + nx_r;
+	int i_d = ny_d * size + nx;
+	int i_l = ny * size + nx_l;
 	return std::pair<std::vector<int>, std::vector<int>>({ i_u, i_r, i_d, i_l }, {});
 }
 
 const std::pair<std::vector<int>, std::vector<int>> XYSquare::getPlaqConnectedCluster(int plaqIndex) const
 {
-	int ny = plaqIndex / (length - 1);
-	int nx = plaqIndex - ny * (length - 1);
+	int ny = plaqIndex / (size - 1);
+	int nx = plaqIndex - ny * (size - 1);
 
-	int site_bl = length * ny + nx;
-	int site_br = length * ny + nx + 1;
-	int site_tl = length * (ny + 1) + nx;
-	int site_tr = length * (ny + 1) + nx + 1;
+	int site_bl = size * ny + nx;
+	int site_br = size * ny + nx + 1;
+	int site_tl = size * (ny + 1) + nx;
+	int site_tr = size * (ny + 1) + nx + 1;
 	return std::pair<std::vector<int>, std::vector<int>>({ site_bl, site_br, site_tr, site_tl }, {});
 }
 

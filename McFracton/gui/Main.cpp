@@ -6,6 +6,7 @@
 
 #include "Canvas.h"
 #include "XYSquare.h"
+#include "QXYSquare.h"
 #include "Timer.h"
 #include "McMachine.h"
 
@@ -13,11 +14,12 @@ int main() {
 
 	using namespace sf;
 
-	XYSquare squareLattice(80);
+	const int tau_layers = 30;
+	QXYSquare squareLattice(30, tau_layers, 1.0, 1.0);
 	McMachine::NumericalParams params;
 	McMachine machine(params, squareLattice, "data.txt");
 
-	machine.StartSimulation();
+	//machine.StartSimulation();
 
 	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
@@ -41,14 +43,23 @@ int main() {
 	sf::Clock clock;
 	Int32 elapsedTime = 0;
 
-	float temperature = 10.0;
-	BufferedArray energies(100);
+	float temperature = 1.0;
+	int layer = 0;
+	BufferedArray energies(200);
 	while (window.isOpen())
 	{
 		Event e;
 		while (window.pollEvent(e))
 		{
 			ImGui::SFML::ProcessEvent(window, e);
+
+			if (e.type == Event::KeyPressed)
+			{
+				if (e.key.code == Keyboard::Enter)
+				{
+					layer = (layer + 1) % tau_layers;
+				}
+			}
 
 			if (e.type == Event::Closed)
 			{
@@ -62,7 +73,9 @@ int main() {
 		ImGui::SFML::Update(window, dt);
 
 		ImGui::Begin("Hello, world!");
-		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.3f");
+		//ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.3f");
+		ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
+		ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
 		ImGui::Checkbox("Vortices", &draw_vortices);
 		ImGui::Checkbox("Plot Energy", &plot_energies);
 		if(plot_energies) {
@@ -83,12 +96,12 @@ int main() {
 		if (draw_vortices)
 			canvas.Draw(squareLattice, squareLattice.getVortices());
 		else
-			canvas.Draw(squareLattice);
+			canvas.Draw(squareLattice, layer);
 
 		ImGui::SFML::Render(window);
 		window.display();
 
-		machine.Sweep(5000, (double)temperature);
+		machine.Sweep(5000);
 
 		double current_energy = squareLattice.getEnergy();
 		energies.Push((float)current_energy);

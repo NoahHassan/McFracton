@@ -40,11 +40,11 @@ public:
 public:
 	McMachine(NumericalParams params, System& system, std::string filename);
 public:
-	void Sweep(int nUpdates, double T);
+	void Sweep(int nUpdates);
 	void StartSimulation();
 private:
-	void Thermalize(double T, int maxSweeps, BufferedArray& energies);
-	void Measure(int nSweeps, double T);
+	void Thermalize(int maxSweeps, BufferedArray& energies);
+	void Measure(int nSweeps);
 private:
 	NumericalParams params;
 	std::mt19937 rng;

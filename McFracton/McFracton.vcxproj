@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="core\include\QXYSquare.cpp" />
     <ClCompile Include="core\src\System.cpp" />
     <ClCompile Include="core\src\McMachine.cpp" />
     <ClCompile Include="core\src\XYSquare.cpp" />
@@ -144,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="core\include\BufferedArray.h" />
     <ClInclude Include="core\include\McMachine.h" />
+    <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\Timer.h" />
     <ClInclude Include="core\include\Vec2D.h" />

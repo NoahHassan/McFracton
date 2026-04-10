@@ -4,11 +4,11 @@
 
 #include "System.h"
 
-class XYSquare : public System {
+class QXYSquare : public System {
 public:
-	XYSquare(int size);
-	XYSquare(int size, float temperature);
-	~XYSquare() override = default;
+	QXYSquare(int size, int Ntau);
+	QXYSquare(int size, int Ntau, float K_s, float K_t);
+	~QXYSquare() override = default;
 public:
 	double getEnergy() const;
 	double proposeSiteFlip(int index, double angle) const;
@@ -19,10 +19,12 @@ public:
 	void LogToFile(std::ofstream& outfile) const;
 public:
 	const int size;
-	double temperature = 1.0;
+	const int Ntau;
+	float K_s;
+	float K_t;
 private:
+	// first is real-space, second is tau-space
 	const std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
-	const std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;
 	double mapToCircle(const double& d) const;
 
 	int sgn(double val) const {

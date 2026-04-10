@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "XYSquare.h"
+#include "QXYSquare.h"
 #include "Square.h"
 
 #define PI 3.1415926535897932384
@@ -17,18 +18,18 @@ public:
 		:
 		window(window), offset(offset)
 	{}
-	void Initialize(const XYSquare& field, float square_size)
+	void Initialize(const QXYSquare& field, float square_size)
 	{
-		site_pixels = std::vector<Square>(field.nSites);
-		for (int n = 0; n < field.nSites; n++)
+		site_pixels = std::vector<Square>(field.nSites / field.Ntau);
+		for (int n = 0; n < field.nSites / field.Ntau; n++)
 		{
-			int ny = n / field.length;
-			int nx = n - ny * field.length;
+			int ny = n / field.size;
+			int nx = n - ny * field.size;
 
 			Square sq(
 				Vec2D(
-					square_size * (nx - field.length / 2) + window.getSize().x / 2, 
-					square_size * (ny - field.length / 2) + window.getSize().y / 2
+					square_size * (nx - field.size / 2) + window.getSize().x / 2, 
+					square_size * (ny - field.size / 2) + window.getSize().y / 2
 				) + offset,
 				square_size
 			);
@@ -39,7 +40,7 @@ public:
 			site_pixels[n] = std::move(sq);
 		}
 	}
-	void Draw(const XYSquare& field)
+	void Draw(const QXYSquare& field)
 	{
 		UpdateFieldColors(field);
 		for (const auto& sq : site_pixels)
@@ -47,7 +48,15 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const XYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices)
+	void Draw(const QXYSquare& field, int layer)
+	{
+		UpdateFieldColors(field, layer);
+		for (const auto& sq : site_pixels)
+		{
+			window.draw(sq);
+		}
+	}
+	void Draw(const QXYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices)
 	{
 		UpdateFieldColors(field);
 		ColorVortices(vortices);
@@ -57,13 +66,23 @@ public:
 		}
 	}
 private:
-	void UpdateFieldColors(const XYSquare& field)
+	void UpdateFieldColors(const QXYSquare& field)
 	{
 		// There are two points that are equivalent here
 		// so may need to change this color wheel to something better
-		for (int n = 0; n < field.nSites; n++)
+		for (int n = 0; n < field.nSites / field.Ntau; n++)
 		{
 			const double& theta = field.getSite(n);
+
+			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
+			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
+		}
+	}
+	void UpdateFieldColors(const QXYSquare& field, int layer)
+	{
+		for (int n = 0; n < field.nSites / field.Ntau; n++)
+		{
+			const double& theta = field.getSite(n + (int)site_pixels.size() * layer);
 
 			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
