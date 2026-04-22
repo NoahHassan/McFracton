@@ -17,7 +17,9 @@ public:
 			double delta = 0.1,
 			int updates_per_sweep = 5000,
 			int max_therm_sweeps = 5000,
-			int measure_sweeps = 100
+			int measure_sweeps = 100,
+			bool overrelax = false,
+			int updates_per_overrelaxation = 10000
 		)
 			:
 			t_max(t_max),
@@ -26,7 +28,9 @@ public:
 			delta(delta),
 			max_therm_sweeps(max_therm_sweeps),
 			updates_per_sweep(updates_per_sweep),
-			measure_sweeps(measure_sweeps)
+			measure_sweeps(measure_sweeps),
+			overrelax(overrelax),
+			updates_per_overrelaxation(updates_per_overrelaxation)
 		{}
 	public:
 		double t_max;
@@ -36,15 +40,18 @@ public:
 		int max_therm_sweeps;
 		int updates_per_sweep;
 		int measure_sweeps;
+		bool overrelax;
+		int updates_per_overrelaxation;
 	};
 public:
 	McMachine(NumericalParams params, System& system, std::string filename);
 public:
-	void Sweep(int nUpdates);
+	void Sweep(int nUpdates, const float temperature);
+	void Overrelax(int nUpdates);
 	void StartSimulation();
 private:
-	void Thermalize(int maxSweeps, BufferedArray& energies);
-	void Measure(int nSweeps);
+	void Thermalize(int maxSweeps, BufferedArray& energies, const float temperature);
+	void Measure(int nSweeps, const float temperature);
 private:
 	NumericalParams params;
 	std::mt19937 rng;

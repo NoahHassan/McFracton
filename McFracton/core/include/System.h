@@ -15,6 +15,8 @@ public:
 	virtual double proposePlaqFlip(int index, double angle) const = 0;
 	virtual void UpdateSite(int index, double angle) = 0;
 	virtual void UpdatePlaq(int index, double angle) = 0;
+	virtual void OverrelaxSite(int index) { throw("OverrelaxSite not implemented"); };
+	virtual void OverrelaxPlaq(int index) { throw("OverrelaxPlaq not implemented"); };
 	double getSite(int index) const;
 	double getPlaq(int index) const;
 	virtual void LogToFile(std::ofstream& outfile) const = 0;

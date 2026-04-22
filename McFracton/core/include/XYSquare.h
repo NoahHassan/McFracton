@@ -19,7 +19,6 @@ public:
 	void LogToFile(std::ofstream& outfile) const;
 public:
 	const int size;
-	double temperature = 1.0;
 private:
 	const std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
 	const std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;

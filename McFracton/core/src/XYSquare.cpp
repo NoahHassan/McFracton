@@ -14,8 +14,8 @@ XYSquare::XYSquare(int size)
 
 XYSquare::XYSquare(int size, float temperature)
 	:
-	System(size * size, size * size),
-	size(size), temperature(temperature)
+	size(size),
+	System(size * size, size * size)
 {
 	site_fields = std::vector<double>(nSites);
 	plaq_fields = std::vector<double>(nSites);
@@ -41,7 +41,7 @@ double XYSquare::getEnergy() const
 		}
 	}
 
-	return -energy / temperature;
+	return -energy;
 }
 
 double XYSquare::proposeSiteFlip(int index, double angle) const
@@ -53,7 +53,7 @@ double XYSquare::proposeSiteFlip(int index, double angle) const
 		flip_energy += cos(2.0 * PI * (site_fields[index] + angle - site_fields[csite])) - cos(2.0 * PI * (site_fields[index] - site_fields[csite]));
 	}
 
-	return -flip_energy / temperature;
+	return -flip_energy;
 }
 
 double XYSquare::proposePlaqFlip(int index, double angle) const

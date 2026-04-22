@@ -28,7 +28,7 @@ public:
 
 			Square sq(
 				Vec2D(
-					square_size * (nx - field.size / 2) + window.getSize().x / 2, 
+					square_size * (nx - field.size / 2) + window.getSize().x / 2,
 					square_size * (ny - field.size / 2) + window.getSize().y / 2
 				) + offset,
 				square_size
@@ -36,7 +36,7 @@ public:
 
 			sq.SetOutlineThickness(2.0);
 			sq.SetOutlineColor(sf::Color::Black);
-			
+
 			site_pixels[n] = std::move(sq);
 		}
 	}
@@ -56,10 +56,10 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const QXYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices)
+	void Draw(const QXYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices, int layer)
 	{
-		UpdateFieldColors(field);
-		ColorVortices(vortices);
+		UpdateFieldColors(field, layer);
+		ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
@@ -88,20 +88,45 @@ private:
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices)
+	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices, int range_min, int range_max)
 	{
-		std::for_each(vortices.begin(), vortices.end(),
-			[&](std::pair<std::vector<int>, int> v) {
-				std::for_each(v.first.begin(), v.first.end(),
-				[&](int i) {
-						if (v.second == 1)
-							site_pixels[i].SetFillColor(sf::Color::Blue);
-						else if (v.second == -1)
-							site_pixels[i].SetFillColor(sf::Color::Yellow);
+		for (auto it = vortices.begin(); it != vortices.end(); ++it)
+		{
+			auto vortex = (*it).first;
+			int type = (*it).second;
+
+			for (int n = 0; n < vortex.size(); n++)
+			{
+				int vortex_index = vortex[n];
+				int num = 0;
+				if (vortex_index > range_min && vortex_index < range_max)
+				{
+					if (type == 1) {
+						num++;
+						site_pixels[vortex_index - range_min].SetFillColor(sf::Color::Blue);
 					}
-				);
+					else {
+						site_pixels[vortex_index - range_min].SetFillColor(sf::Color::Yellow);
+					}
+				}
+				if (num == 1) {
+					const auto meh = 1 + 1;
+				}
 			}
-		);
+		}
+		//std::for_each(vortices.begin(), vortices.end(),
+		//	[&](std::pair<std::vector<int>, int> v) {
+		//		std::for_each(v.first.begin(), v.first.end(),
+		//		[&](int i) {
+		//				if(i >= range_min && i < range_max)
+		//				if (v.second == 1)
+		//					site_pixels[i - range_min].SetFillColor(sf::Color::Blue);
+		//				else if (v.second == -1)
+		//					site_pixels[i - range_min].SetFillColor(sf::Color::Yellow);
+		//			}
+		//		);
+		//	}
+		//);
 	}
 	sf::Color GreenRedUniform(const double& theta)
 	{

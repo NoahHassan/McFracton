@@ -17,7 +17,7 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	logfile = std::ofstream(filename);
 }
 
-void McMachine::Sweep(int nUpdates)
+void McMachine::Sweep(int nUpdates, const float temperature)
 {
 	for (int n = 0; n < nUpdates; n++)
 	{
@@ -25,10 +25,19 @@ void McMachine::Sweep(int nUpdates)
 		double flip_angle = eps_dst(rng);
 		double dE = system.proposeSiteFlip(site_index, flip_angle);
 
-		if (dE < 0.0 || acc_dst(rng) < std::exp(-dE))
+		if (dE < 0.0 || acc_dst(rng) < std::exp(-dE / temperature))
 		{
 			system.UpdateSite(site_index, flip_angle);
 		}
+	}
+}
+
+void McMachine::Overrelax(int nUpdates)
+{
+	for (int n = 0; n < nUpdates; n++)
+	{
+		int site_index = site_dst(rng);
+		system.OverrelaxSite(site_index);
 	}
 }
 
@@ -41,14 +50,14 @@ void McMachine::StartSimulation()
 
 	std::cout << "Initial Thermalization" << std::endl;
 
-	Thermalize(params.max_therm_sweeps, energies);
+	Thermalize(params.max_therm_sweeps, energies, params.t_max);
 
 	double temperature = params.t_max;
 	while (temperature > params.t_min)
 	{
-		Thermalize(params.max_therm_sweeps, energies);
+		Thermalize(params.max_therm_sweeps, energies, temperature);
 
-		Measure(params.measure_sweeps);
+		Measure(params.measure_sweeps, temperature);
 
 		temperature *= params.t_fac;
 	}
@@ -56,12 +65,12 @@ void McMachine::StartSimulation()
 	logfile.close();
 }
 
-void McMachine::Thermalize(int maxSweeps, BufferedArray& energies)
+void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float temperature)
 {
-	//std::cout << "Thermalizing at T = " << T << std::endl;
+	std::cout << "Thermalizing at T = " << temperature << std::endl;
 	for (int n = 0; n < maxSweeps; n++)
 	{
-		Sweep(params.updates_per_sweep);
+		Sweep(params.updates_per_sweep, temperature);
 		energies.Push((float)system.getEnergy());
 
 		if (n > energies.get_size())
@@ -69,18 +78,24 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies)
 			float avg = energies.get_average();
 			float dev = energies.get_deviation();
 
-			//if (dev < 1.0f * T)
-			//	return;
+			if (dev < 1.0f * temperature)
+				return;
 		}
+	}
+
+	if (params.overrelax)
+	{
+		Overrelax(params.updates_per_overrelaxation);
 	}
 }
 
-void McMachine::Measure(int nSweeps)
+void McMachine::Measure(int nSweeps, const float temperature)
 {
 	std::cout << "Measuring" << std::endl;
+	logfile << temperature;
 	for (int n = 0; n < nSweeps; n++)
 	{
-		Sweep(params.updates_per_sweep);
+		Sweep(params.updates_per_sweep, temperature);
 		
 		logfile << '\t';
 		system.LogToFile(logfile);
