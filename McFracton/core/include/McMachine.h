@@ -51,7 +51,7 @@ public:
 	void StartSimulation();
 private:
 	void Thermalize(int maxSweeps, BufferedArray& energies, const float temperature);
-	void Measure(int nSweeps, const float temperature);
+	void Measure(int nSweeps, const double temperature);
 private:
 	NumericalParams params;
 	std::mt19937 rng;

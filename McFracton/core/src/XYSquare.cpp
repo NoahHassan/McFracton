@@ -17,8 +17,8 @@ XYSquare::XYSquare(int size, float temperature)
 	size(size),
 	System(size * size, size * size)
 {
-	site_fields = std::vector<double>(nSites);
-	plaq_fields = std::vector<double>(nSites);
+	site_fields = std::vector<double>(n_site_variables);
+	plaq_fields = std::vector<double>(n_site_variables);
 }
 
 double XYSquare::getEnergy() const
@@ -74,7 +74,7 @@ void XYSquare::UpdatePlaq(int index, double angle)
 std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < nPlaqs; n++)
+	for (int n = 0; n < n_plaq_variables; n++)
 	{
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(n).first;
 

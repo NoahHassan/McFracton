@@ -23,8 +23,8 @@ QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t)
 	st_size(size * Ntau),
 	System(size * size * Ntau, size * size * Ntau * 3)
 {
-	site_fields = std::vector<double>(nSites);
-	plaq_fields = std::vector<double>(nSites*3);
+	site_fields = std::vector<double>(n_site_variables);
+	plaq_fields = std::vector<double>(n_site_variables*3);
 
 	std::random_device rd;
 	std::mt19937 rng(rd());
@@ -99,7 +99,7 @@ void QXYSquare::UpdatePlaq(int index, double angle)
 std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < nPlaqs; n += 3)
+	for (int n = 0; n < n_plaq_variables; n += 3)
 	{
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(n).first;
 
@@ -128,7 +128,7 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() co
 std::vector<std::pair<std::vector<int>, int>> QXYSquare::getTemporalVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < 2*nPlaqs/3; n++)
+	for (int n = 0; n < 2*n_plaq_variables/3; n++)
 	{
 		int plaq_index = n + (n - 1) / 2; // this ignores spacial plaquettes
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(plaq_index).first;

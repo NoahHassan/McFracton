@@ -4,9 +4,9 @@
 
 class System {
 public:
-	System(int nSites, int nPlaqs)
+	System(int n_site_variables, int n_plaq_variables)
 		: 
-		nSites(nSites), nPlaqs(nPlaqs)
+		n_site_variables(n_site_variables), n_plaq_variables(n_plaq_variables)
 	{};
 	virtual ~System() = 0;
 public:
@@ -21,8 +21,8 @@ public:
 	double getPlaq(int index) const;
 	virtual void LogToFile(std::ofstream& outfile) const = 0;
 public:
-	const int nSites;
-	const int nPlaqs;
+	const int n_site_variables;
+	const int n_plaq_variables;
 protected:
 	std::vector<double> site_fields;
 	std::vector<double> plaq_fields;

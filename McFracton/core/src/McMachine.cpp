@@ -10,7 +10,7 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 {
 	std::random_device rd;
 	std::mt19937 rng(rd());
-	site_dst = std::uniform_int_distribution<int>(0, system.nSites - 1);
+	site_dst = std::uniform_int_distribution<int>(0, system.n_site_variables - 1);
 	eps_dst = std::uniform_real_distribution<double>(-params.delta, params.delta);
 	acc_dst = std::uniform_real_distribution<float>(0.0f, 1.0f);
 
@@ -89,13 +89,13 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float t
 	}
 }
 
-void McMachine::Measure(int nSweeps, const float temperature)
+void McMachine::Measure(int nSweeps, const double temperature)
 {
 	std::cout << "Measuring" << std::endl;
 	logfile << temperature;
 	for (int n = 0; n < nSweeps; n++)
 	{
-		Sweep(params.updates_per_sweep, temperature);
+		Sweep(params.updates_per_sweep, (float)temperature);
 		
 		logfile << '\t';
 		system.LogToFile(logfile);

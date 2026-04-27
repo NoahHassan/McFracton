@@ -4,6 +4,7 @@
 
 #include "XYSquare.h"
 #include "QXYSquare.h"
+#include "AbelianGaugeSquare.h"
 #include "Square.h"
 
 #define PI 3.1415926535897932384
@@ -18,18 +19,18 @@ public:
 		:
 		window(window), offset(offset)
 	{}
-	void Initialize(const QXYSquare& field, float square_size)
+	void Initialize(const AbelianGaugeSquare& field, float square_size)
 	{
-		site_pixels = std::vector<Square>(field.nSites / field.Ntau);
-		for (int n = 0; n < field.nSites / field.Ntau; n++)
+		site_pixels = std::vector<Square>(field.linear_size * field.linear_size);
+		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
-			int ny = n / field.size;
-			int nx = n - ny * field.size;
+			int ny = n / field.linear_size;
+			int nx = n - ny * field.linear_size;
 
 			Square sq(
 				Vec2D(
-					square_size * (nx - field.size / 2) + window.getSize().x / 2,
-					square_size * (ny - field.size / 2) + window.getSize().y / 2
+					square_size * (nx - field.linear_size / 2) + window.getSize().x / 2,
+					square_size * (ny - field.linear_size / 2) + window.getSize().y / 2
 				) + offset,
 				square_size
 			);
@@ -40,49 +41,52 @@ public:
 			site_pixels[n] = std::move(sq);
 		}
 	}
-	void Draw(const QXYSquare& field)
+	void Draw(const AbelianGaugeSquare& field, int direction)
 	{
-		UpdateFieldColors(field);
+		UpdateFieldColors(field, direction);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
-	void Draw(const QXYSquare& field, int layer)
+	void Draw(const AbelianGaugeSquare& field, int direction, int layer)
 	{
-		UpdateFieldColors(field, layer);
+		UpdateFieldColors(field, direction, layer);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
-	void Draw(const QXYSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices, int layer)
+	void Draw(const AbelianGaugeSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer)
 	{
-		UpdateFieldColors(field, layer);
-		ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
+		UpdateFieldColors(field, direction, layer);
+		//ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
 private:
-	void UpdateFieldColors(const QXYSquare& field)
+	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction)
 	{
-		// There are two points that are equivalent here
-		// so may need to change this color wheel to something better
-		for (int n = 0; n < field.nSites / field.Ntau; n++)
+		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
-			const double& theta = field.getSite(n);
+			int field_index = n * 3 + direction;
+			assert(field_index < field.n_site_variables);
+			const double& theta = field.getSite(field_index);
 
-			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
-			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
+			//site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
+			site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdateFieldColors(const QXYSquare& field, int layer)
+	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction, int layer)
 	{
-		for (int n = 0; n < field.nSites / field.Ntau; n++)
+		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
-			const double& theta = field.getSite(n + (int)site_pixels.size() * layer);
+			int n_shifted = n + (int)site_pixels.size() * layer;
+			int field_index = n_shifted * 3 + direction;
+			assert(field_index < field.n_site_variables);
+			const double& theta = field.getSite(field_index);
 
 			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
