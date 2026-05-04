@@ -30,12 +30,7 @@ double AbelianGaugeSquare::getEnergy() const
 	for (int n_plaq = 0; n_plaq < nPlaqs; n_plaq++)
 	{
 		auto connected_fields = getPlaqConnectedFields(n_plaq);
-		double plaquette_sum = 0.0;
-		for (int i = 0; i < 4; i++)
-		{
-			plaquette_sum += double(1 - 2 * (i % 2)) * get_field(connected_fields[i].first, connected_fields[i].second);
-		}
-
+		double plaquette_sum = sum_plaquette_wrapped(connected_fields);
 		energy += cos(2.0 * PI * plaquette_sum);
 	}
 
@@ -149,22 +144,9 @@ double AbelianGaugeSquare::getLocalEnergy_x(int nx, int ny, int nt, double angle
 
 	for (int n = 0; n < connected_plaquettes.size(); n++)
 	{
-		double plaquette_sum = 0.0;
+		auto plaquette = connected_plaquettes[n];
 		int angle_index = 2 + (1 - 2 * (n % 2));
-		for (int n_link = 0; n_link < 4; n_link++)
-		{
-			int field_sign = (1 - 2 * (n_link % 2));
-			if (n_link == angle_index)
-			{
-				plaquette_sum += double(field_sign) * angle;
-				continue;
-			}
-			else
-			{
-				auto p = connected_plaquettes[n];
-				plaquette_sum += double(field_sign) * get_field(p[n_link].first, p[n_link].second);
-			}
-		}
+		double plaquette_sum = sum_plaquette_wrapped(plaquette, angle_index, angle);
 
 		energy += cos(2.0 * PI * plaquette_sum);
 	}
@@ -185,22 +167,9 @@ double AbelianGaugeSquare::getLocalEnergy_y(int nx, int ny, int nt, double angle
 
 	for (int n = 0; n < connected_plaquettes.size(); n++)
 	{
-		double plaquette_sum = 0.0;
+		auto plaquette = connected_plaquettes[n];
 		int angle_index = n;
-		for (int n_link = 0; n_link < 4; n_link++)
-		{
-			int field_sign = (1 - 2 * (n_link % 2));
-			if (n_link == angle_index)
-			{
-				plaquette_sum += double(field_sign) * angle;
-				continue;
-			}
-			else
-			{
-				auto p = connected_plaquettes[n];
-				plaquette_sum += double(field_sign) * get_field(p[n_link].first, p[n_link].second);
-			}
-		}
+		double plaquette_sum = sum_plaquette_wrapped(plaquette, angle_index, angle);
 
 		energy += cos(2.0 * PI * plaquette_sum);
 	}
@@ -221,22 +190,9 @@ double AbelianGaugeSquare::getLocalEnergy_t(int nx, int ny, int nt, double angle
 
 	for (int n = 0; n < connected_plaquettes.size(); n++)
 	{
-		double plaquette_sum = 0.0;
+		auto plaquette = connected_plaquettes[n];
 		int angle_index = 2 * (n / 2);
-		for (int n_link = 0; n_link < 4; n_link++)
-		{
-			int field_sign = (1 - 2 * (n_link % 2));
-			if (n_link == angle_index)
-			{
-				plaquette_sum += double(field_sign) * angle;
-				continue;
-			}
-			else
-			{
-				auto p = connected_plaquettes[n];
-				plaquette_sum += double(field_sign) * get_field(p[n_link].first, p[n_link].second);
-			}
-		}
+		double plaquette_sum = sum_plaquette_wrapped(plaquette, angle_index, angle);
 
 		energy += cos(2.0 * PI * plaquette_sum);
 	}
@@ -302,6 +258,11 @@ const std::vector<std::pair<int, int>> AbelianGaugeSquare::getPlaqConnectedField
 	return getPlaqConnectedFields(nx, ny, nt, plaq_type);
 }
 
+/// <summary>
+/// Computes the line integral around a plaquette
+/// </summary>
+/// <param name="plaquette"></param>
+/// <returns></returns>
 const double AbelianGaugeSquare::sum_plaquette_wrapped(const std::vector<std::pair<int, int>>& plaquette) const
 {
 	double sum = 0.0;
@@ -314,6 +275,47 @@ const double AbelianGaugeSquare::sum_plaquette_wrapped(const std::vector<std::pa
 			field_sign * get_field(plaquette[i].first, plaquette[i].second) -
 			field_sign * get_field(plaquette[_i - 1].first, plaquette[_i - 1].second)
 		);
+	}
+
+	return sum;
+}
+
+/// <summary>
+/// Computes the line integral around a plaquette with one site set at a given angle
+/// </summary>
+/// <param name="plaquette"></param>
+/// <param name="angle_index"></param>
+/// <param name="angle"></param>
+/// <returns></returns>
+const double AbelianGaugeSquare::sum_plaquette_wrapped(const std::vector<std::pair<int, int>>& plaquette, int angle_index, double angle) const
+{
+	double sum = 0.0;
+	for (int _i = 1; _i <= plaquette.size(); _i++)
+	{
+		int i = _i % plaquette.size();
+
+		double field_sign = double(1 - 2 * (i % 2));
+		if (i == angle_index)
+		{
+			sum += mapToCircle(
+				field_sign * angle -
+				field_sign * get_field(plaquette[_i - 1].first, plaquette[_i - 1].second)
+			);
+		}
+		else if (i - 1 == angle_index)
+		{
+			sum += mapToCircle(
+				field_sign * get_field(plaquette[i].first, plaquette[i].second) -
+				field_sign * angle
+			);
+		}
+		else
+		{
+			sum += mapToCircle(
+				field_sign * get_field(plaquette[i].first, plaquette[i].second) -
+				field_sign * get_field(plaquette[_i - 1].first, plaquette[_i - 1].second)
+			);
+		}
 	}
 
 	return sum;

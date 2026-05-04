@@ -16,12 +16,13 @@ int main() {
 
 	using namespace sf;
 
-	const int tau_layers = 20;
-	AbelianGaugeSquare cubicLattice(20, tau_layers);
+	const int tau_layers = 15;
+	AbelianGaugeSquare cubicLattice(15, tau_layers);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
+	params.measure_sweeps = 500;
 	params.t_min = 0.01;
-	params.max_therm_sweeps = 10000;
+	params.max_therm_sweeps = 2000;
 	params.overrelax = false;
 	McMachine machine(params, cubicLattice, "data.txt");
 	
@@ -43,8 +44,8 @@ int main() {
 	Canvas canvas(window, { 200.0f, 0.0f });
 	canvas.Initialize(cubicLattice, 15.0);
 
-	bool draw_s_vortices = false;
-	bool draw_t_vortices = false;
+	bool pause = true;
+	bool draw_fluxes = false;
 	int field_direction = 0;
 	bool plot_energies = false;
 
@@ -67,6 +68,11 @@ int main() {
 				{
 					layer = (layer + 1) % tau_layers;
 				}
+
+				if (e.key.code == Keyboard::Space)
+				{
+					pause = !pause;
+				}
 			}
 
 			if (e.type == Event::Closed)
@@ -80,20 +86,14 @@ int main() {
 
 		ImGui::SFML::Update(window, dt);
 
-		ImGui::Begin("Hello, world!");
-		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.3f");
+		ImGui::Begin("Monte Carlo Simulation");
+		ImGui::SliderFloat("Temperature", &temperature, 0.0001f, 10.0f, "%.5f");
 		//ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
 		//ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
 		ImGui::SliderInt("Field Direction", &field_direction, 0, 2);
-		if (ImGui::Checkbox("Spacial Vortices", &draw_s_vortices))
-		{
-			draw_t_vortices = false;
-		}
-		if (ImGui::Checkbox("Temporal Vortices", &draw_t_vortices))
-		{
-			draw_s_vortices = false;
-		}
+		ImGui::Checkbox("Draw Fluxes", &draw_fluxes);
 		ImGui::Checkbox("Plot Energy", &plot_energies);
+		ImGui::Checkbox("Pause", &pause);
 		if(plot_energies) {
 			ImGui::PlotLines(
 				"Energy",
@@ -121,13 +121,18 @@ int main() {
 		//std::for_each(monopoles.begin(), monopoles.end(), [&n_monopoles](int m) { n_monopoles += std::abs(m); });
 		//std::cout << n_monopoles << std::endl;
 
-		canvas.Draw(cubicLattice, field_direction, layer);
+		if (draw_fluxes)
+			canvas.DrawFluxes(cubicLattice, layer);
+		else
+			canvas.Draw(cubicLattice, field_direction, layer);
 
 		ImGui::SFML::Render(window);
 		window.display();
 
-		machine.Sweep(2000, temperature);
-		//machine.Overrelax(5000);
+		if (!pause) {
+			machine.Sweep(2000, temperature);
+			//machine.Overrelax(5000);
+		}
 
 		double current_energy = cubicLattice.getEnergy();
 		energies.Push((float)current_energy);

@@ -66,6 +66,15 @@ public:
 			window.draw(sq);
 		}
 	}
+	void DrawFluxes(const AbelianGaugeSquare& field, int layer)
+	{
+		//Interpret pixels as plaquettes now (nSites = nPlaquettes)
+		UpdatePlaquetteColors(field, layer);
+		for (const auto& sq : site_pixels)
+		{
+			window.draw(sq);
+		}
+	}
 private:
 	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction)
 	{
@@ -90,6 +99,15 @@ private:
 
 			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
+		}
+	}
+	void UpdatePlaquetteColors(const AbelianGaugeSquare& field, int layer)
+	{
+		const std::vector<int> monopoles = field.getMonopoles();
+		for (int n = 0; n < field.linear_size * field.linear_size; n++)
+		{
+			int n_shifted = n + (int)site_pixels.size() * layer;
+			site_pixels[n].SetFillColor(RedWhiteBlue(monopoles[n_shifted]));
 		}
 	}
 	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices, int range_min, int range_max)
@@ -148,6 +166,15 @@ private:
 		sf::Uint8 b = sf::Uint8(std::min(255.0, (lightAngle + ambient) * 20));
 
 		return sf::Color(r, g, b);
+	}
+	sf::Color RedWhiteBlue(int n)
+	{
+		if (n == 0)
+			return sf::Color::White;
+		if (n > 0)
+			return sf::Color::Blue;
+		if (n < 0)
+			return sf::Color::Red;
 	}
 private:
 	sf::RenderWindow& window;

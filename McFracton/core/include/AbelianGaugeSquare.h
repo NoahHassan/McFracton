@@ -28,6 +28,7 @@ private:
 	const std::vector<std::pair<int, int>> getPlaqConnectedFields(int nx, int ny, int nt, int type) const;
 	const std::vector<std::pair<int, int>> getPlaqConnectedFields(int plaqIndex) const;
 	const double sum_plaquette_wrapped(const std::vector<std::pair<int, int>>& plaquette) const;
+	const double sum_plaquette_wrapped(const std::vector<std::pair<int, int>>& plaquette, int angle_index, double angle) const;
 	int to_site_index(int nx, int ny, int nt) const;
 	double get_field(int site_index, int direction) const;
 	double mapToCircle(const double& d) const;
