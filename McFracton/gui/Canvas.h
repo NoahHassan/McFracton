@@ -66,10 +66,18 @@ public:
 			window.draw(sq);
 		}
 	}
-	void DrawFluxes(const AbelianGaugeSquare& field, int layer)
+	void DrawMonopoles(const AbelianGaugeSquare& field, int layer)
 	{
 		//Interpret pixels as plaquettes now (nSites = nPlaquettes)
-		UpdatePlaquetteColors(field, layer);
+		UpdateMonopoleColors(field, layer);
+		for (const auto& sq : site_pixels)
+		{
+			window.draw(sq);
+		}
+	}
+	void DrawFluxes(const AbelianGaugeSquare& field, int layer)
+	{
+		UpdateFluxColors(field, layer);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
@@ -101,13 +109,22 @@ private:
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdatePlaquetteColors(const AbelianGaugeSquare& field, int layer)
+	void UpdateMonopoleColors(const AbelianGaugeSquare& field, int layer)
 	{
 		const std::vector<int> monopoles = field.getMonopoles();
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
 			int n_shifted = n + (int)site_pixels.size() * layer;
 			site_pixels[n].SetFillColor(RedWhiteBlue(monopoles[n_shifted]));
+		}
+	}
+	void UpdateFluxColors(const AbelianGaugeSquare& field, int layer)
+	{
+		const std::vector<double> fluxes = field.getFluxes_z();
+		for (int n = 0; n < field.linear_size * field.linear_size; n++)
+		{
+			int n_shifted = n + (int)site_pixels.size() * layer;
+			site_pixels[n].SetFillColor(NormalMapYellow(fluxes[n_shifted], 0.3, 0.6, 0.8));
 		}
 	}
 	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices, int range_min, int range_max)

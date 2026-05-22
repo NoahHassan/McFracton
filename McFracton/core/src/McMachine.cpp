@@ -6,12 +6,13 @@
 McMachine::McMachine(NumericalParams params, System& system, std::string filename = "log.txt")
 	:
 	params(params),
-	system(system)
+	system(system),
+	acceptance_ratio(0.5)
 {
 	std::random_device rd;
-	std::mt19937 rng(rd());
+	rng = std::mt19937(rd());
 	site_dst = std::uniform_int_distribution<int>(0, system.n_site_variables - 1);
-	eps_dst = std::uniform_real_distribution<double>(-params.delta, params.delta);
+	eps_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 	acc_dst = std::uniform_real_distribution<float>(0.0f, 1.0f);
 
 	logfile = std::ofstream(filename);
@@ -19,17 +20,24 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 
 void McMachine::Sweep(int nUpdates, const float temperature)
 {
+	params.delta = std::max(1e-4, std::min(params.delta / (2.0 * (1.0 - acceptance_ratio)), 1.0));
+	int n_accept = 0;
 	for (int n = 0; n < nUpdates; n++)
 	{
 		int site_index = site_dst(rng);
-		double flip_angle = eps_dst(rng);
+		double flip_angle = eps_dst(rng) * params.delta;
 		double dE = system.proposeSiteFlip(site_index, flip_angle);
 
-		if (dE < 0.0 || acc_dst(rng) < std::exp(-dE / temperature))
+		double fac = std::exp(-dE / temperature);
+
+		if (dE < 0.0 || acc_dst(rng) < fac)
 		{
 			system.UpdateSite(site_index, flip_angle);
+			n_accept++;
 		}
 	}
+	acceptance_ratio = double(n_accept) / double(nUpdates);
+	//std::cout << acceptance_ratio << "\t" << params.delta << std::endl;
 }
 
 void McMachine::Overrelax(int nUpdates)
@@ -71,6 +79,10 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float t
 	for (int n = 0; n < maxSweeps; n++)
 	{
 		Sweep(params.updates_per_sweep, temperature);
+		if (params.overrelax)
+		{
+			Overrelax(params.updates_per_overrelaxation);
+		}
 		energies.Push((float)system.getEnergy());
 
 		if (n > energies.get_size())
@@ -83,10 +95,7 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float t
 		}
 	}
 
-	if (params.overrelax)
-	{
-		Overrelax(params.updates_per_overrelaxation);
-	}
+	std::cout << maxSweeps << " sweeps completed" << std::endl;
 }
 
 void McMachine::Measure(int nSweeps, const double temperature)
@@ -96,6 +105,10 @@ void McMachine::Measure(int nSweeps, const double temperature)
 	for (int n = 0; n < nSweeps; n++)
 	{
 		Sweep(params.updates_per_sweep, (float)temperature);
+		if (params.overrelax)
+		{
+			Overrelax(params.updates_per_overrelaxation);
+		}
 		
 		logfile << '\t';
 		system.LogToFile(logfile);

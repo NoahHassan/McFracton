@@ -22,11 +22,12 @@ int main() {
 	params.t_max = 100.0;
 	params.measure_sweeps = 500;
 	params.t_min = 0.01;
-	params.max_therm_sweeps = 2000;
-	params.overrelax = false;
+	params.max_therm_sweeps = 3500;
+	//params.overrelax = true;
+	params.updates_per_overrelaxation = 5000;
 	McMachine machine(params, cubicLattice, "data.txt");
-	
-	//machine.StartSimulation();
+
+	machine.StartSimulation();
 
 	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
@@ -45,6 +46,7 @@ int main() {
 	canvas.Initialize(cubicLattice, 15.0);
 
 	bool pause = true;
+	bool draw_monopoles = false;
 	bool draw_fluxes = false;
 	int field_direction = 0;
 	bool plot_energies = false;
@@ -91,10 +93,18 @@ int main() {
 		//ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
 		//ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
 		ImGui::SliderInt("Field Direction", &field_direction, 0, 2);
-		ImGui::Checkbox("Draw Fluxes", &draw_fluxes);
+		if (ImGui::Checkbox("Draw Fluxes", &draw_fluxes))
+		{
+			draw_monopoles = false;
+		}
+		else if (ImGui::Checkbox("Draw Monopoles", &draw_monopoles))
+		{
+			draw_fluxes = false;
+		}
 		ImGui::Checkbox("Plot Energy", &plot_energies);
 		ImGui::Checkbox("Pause", &pause);
-		if(plot_energies) {
+		ImGui::Checkbox("Overrelax", &params.overrelax);
+		if (plot_energies) {
 			ImGui::PlotLines(
 				"Energy",
 				energies.get_data().data(),
@@ -109,19 +119,9 @@ int main() {
 
 		window.clear();
 
-		//if(!draw_s_vortices && !draw_t_vortices)
-		//	canvas.Draw(squareLattice, layer);
-		//if (draw_s_vortices)
-		//	canvas.Draw(squareLattice, squareLattice.getSpacialVortices(), layer);
-		//else if (draw_t_vortices)
-		//	canvas.Draw(squareLattice, squareLattice.getTemporalVortices(), layer);
-
-		//int n_monopoles = 0;
-		//const auto monopoles = cubicLattice.getMonopoles();
-		//std::for_each(monopoles.begin(), monopoles.end(), [&n_monopoles](int m) { n_monopoles += std::abs(m); });
-		//std::cout << n_monopoles << std::endl;
-
-		if (draw_fluxes)
+		if (draw_monopoles)
+			canvas.DrawMonopoles(cubicLattice, layer);
+		else if (draw_fluxes)
 			canvas.DrawFluxes(cubicLattice, layer);
 		else
 			canvas.Draw(cubicLattice, field_direction, layer);
@@ -131,10 +131,12 @@ int main() {
 
 		if (!pause) {
 			machine.Sweep(2000, temperature);
-			//machine.Overrelax(5000);
+			if (params.overrelax)
+				machine.Overrelax(500);
 		}
 
-		double current_energy = cubicLattice.getEnergy();
+		//double current_energy = (cubicLattice.getEnergy() / temperature) / (cubicLattice.nPlaqs);
+		double current_energy = (cubicLattice.getEnergy());
 		energies.Push((float)current_energy);
 	}
 

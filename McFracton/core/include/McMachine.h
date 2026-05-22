@@ -60,4 +60,5 @@ private:
 	std::uniform_real_distribution<float> acc_dst;
 	System& system;
 	std::ofstream logfile;
+	double acceptance_ratio;
 };
