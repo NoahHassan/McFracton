@@ -43,6 +43,10 @@ public:
 		bool overrelax;
 		int updates_per_overrelaxation;
 	};
+	struct AutoCorrResult {
+		double tau_int;
+		std::vector<double> rho;
+	};
 public:
 	McMachine(NumericalParams params, System& system, std::string filename);
 public:
@@ -52,6 +56,7 @@ public:
 private:
 	void Thermalize(int maxSweeps, BufferedArray& energies, const float temperature);
 	void Measure(int nSweeps, const double temperature);
+	AutoCorrResult Autocorrelation(const std::vector<double>& data);
 private:
 	NumericalParams params;
 	std::mt19937 rng;
@@ -61,4 +66,5 @@ private:
 	System& system;
 	std::ofstream logfile;
 	double acceptance_ratio;
+	int current_nSweeps;
 };

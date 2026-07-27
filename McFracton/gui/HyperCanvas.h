@@ -5,24 +5,27 @@
 
 #include "XYSquare.h"
 #include "QXYSquare.h"
-#include "AbelianGaugeSquare.h"
+#include "AbelianGaugeCube.h"
 #include "Square.h"
 
 #define PI 3.1415926535897932384
 
-class Canvas {
+class HyperCanvas {
 public:
-	Canvas(sf::RenderWindow& window)
+	HyperCanvas(sf::RenderWindow& window)
 		:
 		window(window)
 	{}
-	Canvas(sf::RenderWindow& window, Vec2D offset)
+	HyperCanvas(sf::RenderWindow& window, Vec2D offset)
 		:
 		window(window), offset(offset)
 	{}
-	void Initialize(const AbelianGaugeSquare& field, float square_size)
+	void Initialize(const AbelianGaugeCube& field, float square_size)
 	{
-		site_pixels = std::vector<Square>(field.linear_size * field.linear_size);
+		planar_size = field.linear_size * field.linear_size;
+		cubic_size = planar_size * field.linear_size;
+
+		site_pixels = std::vector<Square>(planar_size);
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
 			int ny = n / field.linear_size;
@@ -42,7 +45,7 @@ public:
 			site_pixels[n] = std::move(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, int direction)
+	void Draw(const AbelianGaugeCube& field, int direction)
 	{
 		UpdateFieldColors(field, direction);
 		for (const auto& sq : site_pixels)
@@ -50,46 +53,46 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, int direction, int layer)
+	void Draw(const AbelianGaugeCube& field, int direction, int layer, int time)
 	{
-		UpdateFieldColors(field, direction, layer);
+		UpdateFieldColors(field, direction, layer, time);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer)
+	void Draw(const AbelianGaugeCube& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer, int time)
 	{
-		UpdateFieldColors(field, direction, layer);
+		UpdateFieldColors(field, direction, layer, time);
 		//ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
-	void DrawMonopoles(const AbelianGaugeSquare& field, int layer)
+	void DrawMonopoles(const AbelianGaugeCube& field, int layer, int time)
 	{
 		//Interpret pixels as plaquettes now (nSites = nPlaquettes)
-		UpdateMonopoleColors(field, layer);
+		UpdateMonopoleColors(field, layer, time);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
-	void DrawFluxes(const AbelianGaugeSquare& field, int layer)
+	void DrawFluxes(const AbelianGaugeCube& field, int layer, int time)
 	{
-		UpdateFluxColors(field, layer);
+		UpdateFluxColors(field, layer, time);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
 private:
-	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction)
+	void UpdateFieldColors(const AbelianGaugeCube& field, int direction)
 	{
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
-			int field_index = n * 3 + direction;
+			int field_index = n * 4 + direction;
 			assert(field_index < field.n_site_variables);
 			const double& theta = field.getSite(field_index);
 
@@ -97,12 +100,12 @@ private:
 			site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction, int layer)
+	void UpdateFieldColors(const AbelianGaugeCube& field, int direction, int layer, int time)
 	{
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
-			int n_shifted = n + (int)site_pixels.size() * layer;
-			int field_index = n_shifted * 3 + direction;
+			int n_shifted = n + cubic_size * time + planar_size * layer;
+			int field_index = n_shifted * 4 + direction;
 			assert(field_index < field.n_site_variables);
 			const double& theta = field.getSite(field_index);
 
@@ -110,21 +113,21 @@ private:
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdateMonopoleColors(const AbelianGaugeSquare& field, int layer)
+	void UpdateMonopoleColors(const AbelianGaugeCube& field, int layer, int time)
 	{
 		const std::vector<int> monopoles = field.getMonopoles();
-		for (int n = 0; n < field.linear_size * field.linear_size; n++)
+		for (int n = 0; n < planar_size; n++)
 		{
-			int n_shifted = n + (int)site_pixels.size() * layer;
+			int n_shifted = n + cubic_size * time + planar_size * layer;
 			site_pixels[n].SetFillColor(RedWhiteBlue(monopoles[n_shifted]));
 		}
 	}
-	void UpdateFluxColors(const AbelianGaugeSquare& field, int layer)
+	void UpdateFluxColors(const AbelianGaugeCube& field, int layer, int time)
 	{
 		const std::vector<double> fluxes = field.getFluxes_z();
-		for (int n = 0; n < field.linear_size * field.linear_size; n++)
+		for (int n = 0; n < planar_size; n++)
 		{
-			int n_shifted = n + (int)site_pixels.size() * layer;
+			int n_shifted = n + cubic_size * time + planar_size * layer;
 			site_pixels[n].SetFillColor(NormalMapYellow(fluxes[n_shifted], 0.3, 0.6, 0.8));
 		}
 	}
@@ -149,24 +152,8 @@ private:
 						site_pixels[vortex_index - range_min].SetFillColor(sf::Color::Yellow);
 					}
 				}
-				if (num == 1) {
-					const auto meh = 1 + 1;
-				}
 			}
 		}
-		//std::for_each(vortices.begin(), vortices.end(),
-		//	[&](std::pair<std::vector<int>, int> v) {
-		//		std::for_each(v.first.begin(), v.first.end(),
-		//		[&](int i) {
-		//				if(i >= range_min && i < range_max)
-		//				if (v.second == 1)
-		//					site_pixels[i - range_min].SetFillColor(sf::Color::Blue);
-		//				else if (v.second == -1)
-		//					site_pixels[i - range_min].SetFillColor(sf::Color::Yellow);
-		//			}
-		//		);
-		//	}
-		//);
 	}
 	sf::Color GreenRedUniform(const double& theta)
 	{
@@ -195,6 +182,8 @@ private:
 			return sf::Color::Red;
 	}
 private:
+	int cubic_size = -1;
+	int planar_size = -1;
 	sf::RenderWindow& window;
 	std::vector<Square> site_pixels;
 	Vec2D offset{ 0.0f, 0.0f };

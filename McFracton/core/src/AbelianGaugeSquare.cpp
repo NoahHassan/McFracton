@@ -179,14 +179,37 @@ std::vector<double> AbelianGaugeSquare::getFluxes_z() const
 	return fluxes;
 }
 
-void AbelianGaugeSquare::LogToFile(std::ofstream& outfile) const
-{
-	int n_monopoles = 0;
-	const auto monopoles = getMonopoles();
-	std::for_each(monopoles.begin(), monopoles.end(), [&n_monopoles](int m) { n_monopoles += std::abs(m); });
+//void AbelianGaugeSquare::LogToFile(std::ofstream& outfile) const
+//{
+//	//int n_monopoles = 0;
+//	//const auto monopoles = getMonopoles();
+//	//std::for_each(monopoles.begin(), monopoles.end(), [&n_monopoles](int m) { n_monopoles += std::abs(m); });
+//
+//	outfile << getEnergy();
+//}
 
-	outfile << n_monopoles;
-}
+System::Observables AbelianGaugeSquare::Measure() const
+{
+	System::Observables observables;
+	observables.energy = getEnergy();
+	observables.helicity_modulus = 0.0;
+	
+	int n_a = 0;
+	int n_b = 0;
+	const auto monopoles = getMonopoles();
+	for (int n = 0; n < monopoles.size(); n++)
+	{
+		if (monopoles[n] < 0)
+			n_b++;
+		else if (monopoles[n] > 0)
+			n_a++;
+	}
+
+	observables.n_defects_a = n_a;
+	observables.n_defects_b = n_b;
+
+	return observables;
+};
 
 double AbelianGaugeSquare::getLocalEnergy_x(int nx, int ny, int nt, double angle) const
 {

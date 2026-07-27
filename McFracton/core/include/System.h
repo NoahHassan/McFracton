@@ -4,6 +4,15 @@
 
 class System {
 public:
+	struct Observables {
+		double energy = 0.0;
+		double helicity_modulus = 0.0;
+		double polyakov_loop = 0.0;
+		double flux_cos = 0.0;
+		int n_defects_a = 0;
+		int n_defects_b = 0;
+	};
+public:
 	System(int n_site_variables, int n_plaq_variables)
 		: 
 		n_site_variables(n_site_variables), n_plaq_variables(n_plaq_variables)
@@ -19,7 +28,8 @@ public:
 	virtual void OverrelaxPlaq(int index) { throw("OverrelaxPlaq not implemented"); };
 	double getSite(int index) const;
 	double getPlaq(int index) const;
-	virtual void LogToFile(std::ofstream& outfile) const = 0;
+	virtual Observables Measure() const { throw("Measure not implemented"); return {}; };
+	//virtual void LogToFile(std::ofstream& outfile) const = 0;
 public:
 	const int n_site_variables;
 	const int n_plaq_variables;

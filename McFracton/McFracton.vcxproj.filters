@@ -30,7 +30,13 @@
     <ClCompile Include="core\src\System.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="core\include\QXYSquare.cpp">
+    <ClCompile Include="core\src\QXYSquare.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="core\src\AbelianGaugeSquare.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="core\src\AbelianGaugeCube.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>
@@ -63,6 +69,15 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="core\include\QXYSquare.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\AbelianGaugeSquare.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\AbelianGaugeCube.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\HyperCanvas.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

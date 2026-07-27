@@ -135,7 +135,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="core\include\QXYSquare.cpp" />
+    <ClCompile Include="core\src\AbelianGaugeCube.cpp" />
+    <ClCompile Include="core\src\AbelianGaugeSquare.cpp" />
+    <ClCompile Include="core\src\QXYSquare.cpp" />
     <ClCompile Include="core\src\System.cpp" />
     <ClCompile Include="core\src\McMachine.cpp" />
     <ClCompile Include="core\src\XYSquare.cpp" />
@@ -143,6 +145,8 @@
     <ClCompile Include="gui\Shape.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="core\include\AbelianGaugeCube.h" />
+    <ClInclude Include="core\include\AbelianGaugeSquare.h" />
     <ClInclude Include="core\include\BufferedArray.h" />
     <ClInclude Include="core\include\McMachine.h" />
     <ClInclude Include="core\include\QXYSquare.h" />
@@ -151,6 +155,7 @@
     <ClInclude Include="core\include\Vec2D.h" />
     <ClInclude Include="core\include\XYSquare.h" />
     <ClInclude Include="gui\Canvas.h" />
+    <ClInclude Include="gui\HyperCanvas.h" />
     <ClInclude Include="gui\Shape.h" />
     <ClInclude Include="gui\Square.h" />
   </ItemGroup>

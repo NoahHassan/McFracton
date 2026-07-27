@@ -6,9 +6,11 @@
 #include <algorithm>
 
 #include "Canvas.h"
+#include "HyperCanvas.h"
 #include "XYSquare.h"
 #include "QXYSquare.h"
 #include "AbelianGaugeSquare.h"
+#include "AbelianGaugeCube.h"
 #include "Timer.h"
 #include "McMachine.h"
 
@@ -16,16 +18,18 @@ int main() {
 
 	using namespace sf;
 
-	const int tau_layers = 15;
-	AbelianGaugeSquare cubicLattice(15, tau_layers);
+	const int space_layers = 6;
+	const int tau_layers = 6;
+	//AbelianGaugeSquare cubicLattice(5, tau_layers)
+	AbelianGaugeCube hypercubicLattice(space_layers, tau_layers);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
-	params.measure_sweeps = 500;
+	params.measure_sweeps = 100;
 	params.t_min = 0.01;
-	params.max_therm_sweeps = 3500;
-	//params.overrelax = true;
-	params.updates_per_overrelaxation = 5000;
-	McMachine machine(params, cubicLattice, "data.txt");
+	params.max_therm_sweeps = 4000;
+	params.overrelax = true;
+	params.updates_per_overrelaxation = 1000;
+	McMachine machine(params, hypercubicLattice, "3d_abelian_L=6.txt");
 
 	machine.StartSimulation();
 
@@ -42,8 +46,8 @@ int main() {
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(1.5f);
 
-	Canvas canvas(window, { 200.0f, 0.0f });
-	canvas.Initialize(cubicLattice, 15.0);
+	HyperCanvas canvas(window, { 200.0f, 0.0f });
+	canvas.Initialize(hypercubicLattice, 15.0);
 
 	bool pause = true;
 	bool draw_monopoles = false;
@@ -54,8 +58,9 @@ int main() {
 	sf::Clock clock;
 	Int32 elapsedTime = 0;
 
-	float temperature = 0.1;
+	float temperature = 0.1f;
 	int layer = 0;
+	int time = 0;
 	BufferedArray energies(200);
 	while (window.isOpen())
 	{
@@ -68,7 +73,11 @@ int main() {
 			{
 				if (e.key.code == Keyboard::Enter)
 				{
-					layer = (layer + 1) % tau_layers;
+					layer = (layer + 1) % space_layers;
+				}
+				if (e.key.code == Keyboard::Right)
+				{
+					time = (time + 1) % tau_layers;
 				}
 
 				if (e.key.code == Keyboard::Space)
@@ -89,7 +98,7 @@ int main() {
 		ImGui::SFML::Update(window, dt);
 
 		ImGui::Begin("Monte Carlo Simulation");
-		ImGui::SliderFloat("Temperature", &temperature, 0.0001f, 10.0f, "%.5f");
+		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.5f");
 		//ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
 		//ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
 		ImGui::SliderInt("Field Direction", &field_direction, 0, 2);
@@ -120,11 +129,11 @@ int main() {
 		window.clear();
 
 		if (draw_monopoles)
-			canvas.DrawMonopoles(cubicLattice, layer);
+			canvas.DrawMonopoles(hypercubicLattice, layer, time);
 		else if (draw_fluxes)
-			canvas.DrawFluxes(cubicLattice, layer);
+			canvas.DrawFluxes(hypercubicLattice, layer, time);
 		else
-			canvas.Draw(cubicLattice, field_direction, layer);
+			canvas.Draw(hypercubicLattice, field_direction, layer, time);
 
 		ImGui::SFML::Render(window);
 		window.display();
@@ -136,7 +145,7 @@ int main() {
 		}
 
 		//double current_energy = (cubicLattice.getEnergy() / temperature) / (cubicLattice.nPlaqs);
-		double current_energy = (cubicLattice.getEnergy());
+		double current_energy = (hypercubicLattice.getEnergy());
 		energies.Push((float)current_energy);
 	}
 
