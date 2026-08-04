@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <algorithm>
 
 #include "System.h"
 
@@ -17,7 +18,7 @@ public:
 	virtual void OverrelaxSite(int index) override;
 	std::vector<int> getMonopoles() const;
 	std::vector<double> getFluxes_z() const;
-	Observables Measure() const;
+	Observables Measure(double T) const;
 	//void LogToFile(std::ofstream& outfile) const;
 public:
 	const int linear_size;

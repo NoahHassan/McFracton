@@ -280,7 +280,7 @@ std::vector<double> AbelianGaugeCube::getFluxes_z() const
 //	outfile << getEnergy();
 //}
 
-System::Observables AbelianGaugeCube::Measure() const
+System::Observables AbelianGaugeCube::Measure(double T) const
 {
 	System::Observables observables;
 	observables.energy = getEnergy();

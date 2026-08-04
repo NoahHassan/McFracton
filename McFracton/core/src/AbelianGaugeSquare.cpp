@@ -188,7 +188,7 @@ std::vector<double> AbelianGaugeSquare::getFluxes_z() const
 //	outfile << getEnergy();
 //}
 
-System::Observables AbelianGaugeSquare::Measure() const
+System::Observables AbelianGaugeSquare::Measure(double T) const
 {
 	System::Observables observables;
 	observables.energy = getEnergy();

@@ -28,7 +28,7 @@ public:
 	virtual void OverrelaxPlaq(int index) { throw("OverrelaxPlaq not implemented"); };
 	double getSite(int index) const;
 	double getPlaq(int index) const;
-	virtual Observables Measure() const { throw("Measure not implemented"); return {}; };
+	virtual Observables Measure(double T) const { throw("Measure not implemented"); return {}; };
 	//virtual void LogToFile(std::ofstream& outfile) const = 0;
 public:
 	const int n_site_variables;

@@ -20,13 +20,13 @@ int main() {
 
 	const int space_layers = 6;
 	const int tau_layers = 6;
-	//AbelianGaugeSquare cubicLattice(5, tau_layers)
 	AbelianGaugeCube hypercubicLattice(space_layers, tau_layers);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
-	params.measure_sweeps = 100;
 	params.t_min = 0.01;
 	params.max_therm_sweeps = 4000;
+	params.n_measurements = 10;
+	params.max_measure_sweeps = 1000;
 	params.overrelax = true;
 	params.updates_per_overrelaxation = 1000;
 	McMachine machine(params, hypercubicLattice, "3d_abelian_L=6.txt");

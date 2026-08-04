@@ -9,7 +9,8 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	params(params),
 	system(system),
 	acceptance_ratio(0.5),
-	current_nSweeps(params.max_therm_sweeps / 10)
+	current_nSweeps(params.max_therm_sweeps / 10),
+	current_measurement_sweeps(params.max_measure_sweeps)
 {
 	std::random_device rd;
 	rng = std::mt19937(rd());
@@ -68,7 +69,7 @@ void McMachine::StartSimulation()
 	{
 		Thermalize(current_nSweeps, energies, temperature);
 
-		Measure(params.measure_sweeps, temperature);
+		Measure(params.n_measurements, current_measurement_sweeps, temperature);
 
 		temperature *= params.t_fac;
 	}
@@ -86,46 +87,39 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float t
 		{
 			Overrelax(params.updates_per_overrelaxation);
 		}
-		energies.Push((float)system.getEnergy());
-
-		//if (n > energies.get_size())
-		//{
-		//	float avg = energies.get_average();
-		//	float dev = energies.get_deviation();
-
-		//	if (dev < 1.0f * temperature)
-		//		return;
-		//}
+		if(params.log_energies)
+			energies.Push((float)system.getEnergy());
 	}
 
 	std::cout << maxSweeps << " sweeps completed" << std::endl;
 }
 
-void McMachine::Measure(int nSweeps, const double temperature)
+void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double temperature)
 {
 	std::cout << "Measuring" << std::endl;
 
 	std::vector<System::Observables> observables_T;
-	for (int n = 0; n < nSweeps; n++)
+	std::vector<double> energies;
+	for (int n = 0; n < n_measurements; n++)
 	{
-		Sweep(params.updates_per_sweep, (float)temperature);
+		for (int m = 0; m < n_measure_sweeps; m++)
+		{
+			energies.push_back(system.getEnergy());
+			Sweep(params.updates_per_sweep, (float)temperature);
+		}
 		if (params.overrelax)
 		{
-			//Overrelax(params.updates_per_overrelaxation);
+			Overrelax(params.updates_per_overrelaxation);
 		}
-
-		observables_T.push_back(system.Measure());
+		observables_T.push_back(system.Measure(temperature));
 	}
 
 	// Compute observables
 	System::Observables means;
 	System::Observables s_sqr;
 	int N = (int)observables_T.size();
-	std::vector<double> energies(N);
 	for (int n = 0; n < N; n++)
 	{
-		energies[n] = observables_T[n].energy;
-
 		means.energy += observables_T[n].energy / N;
 		means.helicity_modulus += observables_T[n].helicity_modulus / N;
 		means.n_defects_a += observables_T[n].n_defects_a;
@@ -137,11 +131,11 @@ void McMachine::Measure(int nSweeps, const double temperature)
 
 	for (int n = 0; n < N; n++)
 	{
-		s_sqr.energy += std::powf((observables_T[n].energy - means.energy), 2.0f) / N;
-		s_sqr.helicity_modulus += std::powf((observables_T[n].helicity_modulus - means.helicity_modulus), 2.0f) / N;
-		s_sqr.n_defects_a += std::powf(((float)observables_T[n].n_defects_a - means.n_defects_a), 2.0f);
-		s_sqr.n_defects_b += std::powf(((float)observables_T[n].n_defects_b - means.n_defects_b), 2.0f);
-		s_sqr.polyakov_loop += std::powf(((float)observables_T[n].polyakov_loop - means.polyakov_loop), 2.0f) / N;
+		s_sqr.energy += std::pow((observables_T[n].energy - means.energy), 2.0f) / N;
+		s_sqr.helicity_modulus += std::pow((observables_T[n].helicity_modulus - means.helicity_modulus), 2.0f) / N;
+		s_sqr.n_defects_a += std::pow(((float)observables_T[n].n_defects_a - means.n_defects_a), 2.0f);
+		s_sqr.n_defects_b += std::pow(((float)observables_T[n].n_defects_b - means.n_defects_b), 2.0f);
+		s_sqr.polyakov_loop += std::pow(((float)observables_T[n].polyakov_loop - means.polyakov_loop), 2.0f) / N;
 	}
 	s_sqr.n_defects_a /= N;
 	s_sqr.n_defects_b /= N;
@@ -162,6 +156,7 @@ void McMachine::Measure(int nSweeps, const double temperature)
 	int required = static_cast<int>(std::ceil(2.0 * ac.tau_int * 200));
 
 	current_nSweeps = std::min(params.max_therm_sweeps, required);
+	current_measurement_sweeps = std::min(params.max_therm_sweeps, required);
 	std::cout << "required sweeps: " << required << ", setting nSweeps = " << current_nSweeps << std::endl;
 }
 

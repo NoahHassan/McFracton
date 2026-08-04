@@ -44,6 +44,26 @@ double XYSquare::getEnergy() const
 	return -energy;
 }
 
+double XYSquare::getSinSqrX() const
+{
+	double result = 0.0;
+	for (int nx = 0; nx < size; nx++)
+	{
+		for (int ny = 0; ny < size; ny++)
+		{
+			int siteIndex = ny * size + nx;
+
+			// No double counting
+			int nx_r = (nx + 1) % size;
+			int i_r = ny * size + nx_r;
+
+			result += sin(2.0 * PI * (site_fields[i_r] - site_fields[siteIndex]));
+		}
+	}
+
+	return result * result;
+}
+
 double XYSquare::proposeSiteFlip(int index, double angle) const
 {
 	std::vector<int> connectedSites = getSiteConnectedCluster(index).first;
@@ -100,11 +120,38 @@ std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 	return vortices;
 }
 
-void XYSquare::LogToFile(std::ofstream& outfile) const
+System::Observables XYSquare::Measure(double T) const
 {
-	const auto vortexPairs = getVortices();
-	outfile << vortexPairs.size();
+	System::Observables observables;
+	observables.energy = getEnergy();
+	observables.flux_cos = 0.0;
+	observables.helicity_modulus = 
+		-observables.energy / (2.0 * (double)n_site_variables) - 
+		getSinSqrX() / (T * (double)n_site_variables);
+	observables.polyakov_loop = 0.0;
+
+	int n_a = 0;
+	int n_b = 0;
+	const auto monopoles = getVortices();
+	for (int n = 0; n < monopoles.size(); n++)
+	{
+		if (monopoles[n].second < 0)
+			n_b++;
+		else if (monopoles[n].second > 0)
+			n_a++;
+	}
+
+	observables.n_defects_a = n_a;
+	observables.n_defects_b = n_b;
+
+	return observables;
 }
+
+//void XYSquare::LogToFile(std::ofstream& outfile) const
+//{
+//	const auto vortexPairs = getVortices();
+//	outfile << vortexPairs.size();
+//}
 
 const std::pair<std::vector<int>, std::vector<int>> XYSquare::getSiteConnectedCluster(int siteIndex) const
 {

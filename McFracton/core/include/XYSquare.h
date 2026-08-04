@@ -11,12 +11,13 @@ public:
 	~XYSquare() override = default;
 public:
 	double getEnergy() const;
+	double getSinSqrX() const;
 	double proposeSiteFlip(int index, double angle) const;
 	double proposePlaqFlip(int index, double angle) const;
 	void UpdateSite(int index, double angle);
 	void UpdatePlaq(int index, double angle);
 	std::vector<std::pair<std::vector<int>, int>> getVortices() const;
-	void LogToFile(std::ofstream& outfile) const;
+	Observables Measure(double T) const;
 public:
 	const int size;
 private:
