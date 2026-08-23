@@ -9,8 +9,8 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	params(params),
 	system(system),
 	acceptance_ratio(0.5),
-	current_nSweeps(params.max_therm_sweeps / 10),
-	current_measurement_sweeps(params.max_measure_sweeps)
+	current_nSweeps(params.initial_therm_sweeps),
+	current_measurement_sweeps(params.initial_therm_sweeps)
 {
 	std::random_device rd;
 	rng = std::mt19937(rd());
@@ -21,9 +21,9 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	logfile = std::ofstream(filename);
 }
 
-void McMachine::Sweep(int nUpdates, const float temperature)
+void McMachine::Sweep(int nUpdates, const double temperature)
 {
-	params.delta = std::max(1e-4, std::min(params.delta / (2.0 * (1.0 - acceptance_ratio)), 1.0));
+	params.delta = std::max(1e-10, std::min(params.delta / (2.0 * (1.0 - acceptance_ratio)), 1.0));
 	int n_accept = 0;
 	for (int n = 0; n < nUpdates; n++)
 	{
@@ -55,14 +55,14 @@ void McMachine::Overrelax(int nUpdates)
 void McMachine::StartSimulation()
 {
 	assert(logfile.is_open());
-	logfile << "T\tEnergy\tDE\tHelicity Modulus\tDHM\tdefects_a\tDna\tdefects_b\tDnb\tPolyakovloop\tDPL\n";
+	logfile << "T\tEnergy\tDE\tHelicity Modulus\tDHM\tdefects_a\tDna\tdefects_b\tDnb\tPolyakov Loop\tDPL\tautocorrelation\tn_sweeps\tacceptance\n";
 
 	const int buffersize = 50;
 	BufferedArray energies(buffersize);
 
 	std::cout << "Initial Thermalization" << std::endl;
 
-	Thermalize(params.max_therm_sweeps, energies, params.t_max);
+	Thermalize(current_nSweeps, energies, params.t_max);
 
 	double temperature = params.t_max;
 	while (temperature > params.t_min)
@@ -77,7 +77,7 @@ void McMachine::StartSimulation()
 	logfile.close();
 }
 
-void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float temperature)
+void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const double temperature)
 {
 	std::cout << "Thermalizing at T = " << temperature << std::endl;
 	for (int n = 0; n < maxSweeps; n++)
@@ -85,7 +85,21 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const float t
 		Sweep(params.updates_per_sweep, temperature);
 		if (params.overrelax)
 		{
+			//double energy_a = system.getEnergy();
 			Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//Overrelax(params.updates_per_overrelaxation);
+			//double energy_b = system.getEnergy();
+			//double diff = energy_a - energy_b;
+			//std::cout << diff << std::endl;
 		}
 		if(params.log_energies)
 			energies.Push((float)system.getEnergy());
@@ -133,9 +147,9 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 	{
 		s_sqr.energy += std::pow((observables_T[n].energy - means.energy), 2.0f) / N;
 		s_sqr.helicity_modulus += std::pow((observables_T[n].helicity_modulus - means.helicity_modulus), 2.0f) / N;
-		s_sqr.n_defects_a += std::pow(((float)observables_T[n].n_defects_a - means.n_defects_a), 2.0f);
-		s_sqr.n_defects_b += std::pow(((float)observables_T[n].n_defects_b - means.n_defects_b), 2.0f);
-		s_sqr.polyakov_loop += std::pow(((float)observables_T[n].polyakov_loop - means.polyakov_loop), 2.0f) / N;
+		s_sqr.n_defects_a += (int)std::pow((observables_T[n].n_defects_a - means.n_defects_a), 2.0f);
+		s_sqr.n_defects_b += (int)std::pow((observables_T[n].n_defects_b - means.n_defects_b), 2.0f);
+		s_sqr.polyakov_loop += std::pow((observables_T[n].polyakov_loop - means.polyakov_loop), 2.0f) / N;
 	}
 	s_sqr.n_defects_a /= N;
 	s_sqr.n_defects_b /= N;
@@ -148,21 +162,22 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 	logfile << '\t' << means.n_defects_b << '\t' << s_sqr.n_defects_b;
 	logfile << '\t' << means.polyakov_loop << '\t' << s_sqr.polyakov_loop;
 
-	logfile << std::endl;
-
 	// compute autocorrelation
 	auto ac = Autocorrelation(energies);
 
-	int required = static_cast<int>(std::ceil(2.0 * ac.tau_int * 200));
+	int required = static_cast<int>(std::max(10, (int)std::ceil(2.0 * ac.tau_int * 10)));
 
 	current_nSweeps = std::min(params.max_therm_sweeps, required);
 	current_measurement_sweeps = std::min(params.max_therm_sweeps, required);
 	std::cout << "required sweeps: " << required << ", setting nSweeps = " << current_nSweeps << std::endl;
+
+	logfile << '\t' << required << '\t' << current_nSweeps << '\t' << acceptance_ratio;
+	logfile << std::endl;
 }
 
 McMachine::AutoCorrResult McMachine::Autocorrelation(const std::vector<double>& data)
 {
-	const int N = data.size();
+	const size_t N = data.size();
 
 	double mean = std::accumulate(data.begin(), data.end(), 0.0) / N;
 

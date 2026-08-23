@@ -29,7 +29,6 @@ public:
 	double getSite(int index) const;
 	double getPlaq(int index) const;
 	virtual Observables Measure(double T) const { throw("Measure not implemented"); return {}; };
-	//virtual void LogToFile(std::ofstream& outfile) const = 0;
 public:
 	const int n_site_variables;
 	const int n_plaq_variables;

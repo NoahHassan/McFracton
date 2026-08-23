@@ -11,6 +11,7 @@
 #include "QXYSquare.h"
 #include "AbelianGaugeSquare.h"
 #include "AbelianGaugeCube.h"
+#include "Spiderweb.h"
 #include "Timer.h"
 #include "McMachine.h"
 
@@ -18,15 +19,35 @@ int main() {
 
 	using namespace sf;
 
+	{
+		const int linear_size = 8;
+		const int temporal_size = 8;
+		const double KU = 1.0;
+		Spiderweb spiderweb(linear_size, temporal_size, KU);
+
+		McMachine::NumericalParams params;
+		params.t_max = 100.0;
+		params.t_min = 0.01;
+		params.max_therm_sweeps = 4000;
+		params.updates_per_sweep = linear_size * linear_size * temporal_size;
+		params.n_measurements = 100;
+		params.max_measure_sweeps = 100;
+		params.overrelax = false;
+
+		McMachine machine(params, spiderweb, "spiderweb_test_L=8.txt");
+		machine.StartSimulation();
+		std::cin.get();
+	}
+
 	const int space_layers = 6;
 	const int tau_layers = 6;
 	AbelianGaugeCube hypercubicLattice(space_layers, tau_layers);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
 	params.t_min = 0.01;
-	params.max_therm_sweeps = 4000;
-	params.n_measurements = 10;
-	params.max_measure_sweeps = 1000;
+	params.max_therm_sweeps = 2000;
+	params.n_measurements = 10; // try increasing this a lot
+	params.max_measure_sweeps = 500;
 	params.overrelax = true;
 	params.updates_per_overrelaxation = 1000;
 	McMachine machine(params, hypercubicLattice, "3d_abelian_L=6.txt");

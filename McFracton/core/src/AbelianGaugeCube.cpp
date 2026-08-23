@@ -104,7 +104,7 @@ void AbelianGaugeCube::OverrelaxSite(int index)
 	int direction = site_index % 4;
 
 	const int cube_size = linear_size * linear_size * linear_size;
-	const int plane_size = linear_size * linear_size; 
+	const int plane_size = linear_size * linear_size;
 
 	int nt = site_index / cube_size;
 	int nz = (site_index % cube_size) / plane_size;
@@ -339,7 +339,7 @@ double AbelianGaugeCube::getLocalEnergy_x(int nx, int ny, int nz, int nt, double
 	for (int n = 0; n < connected_plaquettes.size(); n++)
 	{
 		auto plaquette = connected_plaquettes[n];
-		int angle_index = n / 3; // because the links appear at first or third position
+		int angle_index = (n / 3) * 2; // because the links appear at first or third position
 		double plaquette_sum = sum_plaquette(plaquette, angle_index, angle);
 
 		energy += cos(PI * plaquette_sum);
@@ -358,7 +358,7 @@ double AbelianGaugeCube::getLocalEnergy_y(int nx, int ny, int nz, int nt, double
 		getPlaqConnectedFields(nx, ny, nz, nt, 3),										// yz
 		getPlaqConnectedFields(nx, ny, (nz - 1 + linear_size) % linear_size, nt, 3),	// yz
 		getPlaqConnectedFields(nx, ny, nz, nt, 4),										// yt
-		getPlaqConnectedFields(nx, ny, nz, (nt - 1 + temporal_size) % temporal_size, 3)	// yt
+		getPlaqConnectedFields(nx, ny, nz, (nt - 1 + temporal_size) % temporal_size, 4)	// yt
 	};
 
 	int angle_indices[] = { 3, 1, 0, 2, 0, 2 };

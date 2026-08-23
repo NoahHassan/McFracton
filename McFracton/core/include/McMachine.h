@@ -14,6 +14,7 @@ public:
 		double t_fac = 0.9;
 		double delta = 0.1;
 		int updates_per_sweep = 5000;
+		int initial_therm_sweeps = 100;
 		int max_therm_sweeps = 5000;
 		int max_measure_sweeps = 500;
 		int n_measurements = 10;
@@ -28,11 +29,11 @@ public:
 public:
 	McMachine(NumericalParams params, System& system, std::string filename);
 public:
-	void Sweep(int nUpdates, const float temperature);
+	void Sweep(int nUpdates, const double temperature);
 	void Overrelax(int nUpdates);
 	void StartSimulation();
 private:
-	void Thermalize(int maxSweeps, BufferedArray& energies, const float temperature);
+	void Thermalize(int maxSweeps, BufferedArray& energies, const double temperature);
 	void Measure(int n_measurements, int n_measure_sweeps, const double temperature);
 	AutoCorrResult Autocorrelation(const std::vector<double>& data);
 private:

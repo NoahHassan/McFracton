@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="core\src\Spiderweb.cpp" />
     <ClCompile Include="core\src\AbelianGaugeCube.cpp" />
     <ClCompile Include="core\src\AbelianGaugeSquare.cpp" />
     <ClCompile Include="core\src\QXYSquare.cpp" />
@@ -150,6 +151,7 @@
     <ClInclude Include="core\include\BufferedArray.h" />
     <ClInclude Include="core\include\McMachine.h" />
     <ClInclude Include="core\include\QXYSquare.h" />
+    <ClInclude Include="core\include\Spiderweb.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\Timer.h" />
     <ClInclude Include="core\include\Vec2D.h" />
