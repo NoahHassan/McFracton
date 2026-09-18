@@ -11,6 +11,7 @@ public:
 	~XYSquare() override = default;
 public:
 	double getEnergy() const;
+	std::vector<double> getLocalEnergies() const { return {}; };
 	double getSinSqrX() const;
 	double proposeSiteFlip(int index, double angle) const;
 	double proposePlaqFlip(int index, double angle) const;

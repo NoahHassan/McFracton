@@ -20,6 +20,7 @@ public:
 	virtual ~System() = 0;
 public:
 	virtual double getEnergy() const = 0;
+	virtual std::vector<double> getLocalEnergies() const = 0;
 	virtual double proposeSiteFlip(int index, double angle) const = 0;
 	virtual double proposePlaqFlip(int index, double angle) const = 0;
 	virtual void UpdateSite(int index, double angle) = 0;

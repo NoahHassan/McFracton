@@ -11,6 +11,7 @@ public:
 	~AbelianGaugeCube() override = default;
 public:
 	double getEnergy() const;
+	std::vector<double> getLocalEnergies() const { return {}; };
 	double proposeSiteFlip(int index, double angle) const;
 	double proposePlaqFlip(int index, double angle) const;
 	void UpdateSite(int index, double angle);

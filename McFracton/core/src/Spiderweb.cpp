@@ -1,9 +1,15 @@
 ﻿#include "Spiderweb.h"
 
+#include <assert.h>
+
 // A fields are treated as:
 // 0: A0
 // 1: Axx
 // 2: Axy
+
+#ifndef PI
+#define PI 3.1415926535897932384
+#endif
 
 Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU)
 	:
@@ -36,10 +42,9 @@ double Spiderweb::getEnergy() const
 	double energy = 0.0;
 	for (int n_site = 0; n_site < nSites; n_site++)
 	{
-		int anchor = n_site * 3;	// any field index at this site works; the term generators only use field_index/3
-		auto e_terms_xx = getElectricTerms_xx(anchor);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
-		auto e_terms_xy = getElectricTerms_xy(anchor);	// is a term in the cosine of the hamiltonian
-		auto b_terms = getMagneticTerms(anchor);
+		auto e_terms_xx = getElectricTerms_xx(n_site*3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
+		auto e_terms_xy = getElectricTerms_xy(n_site*3);	// is a term in the cosine of the hamiltonian
+		auto b_terms = getMagneticTerms(n_site*3);
 
 		double e_sum_xx = 0.0;
 		for (auto term : e_terms_xx)
@@ -58,7 +63,83 @@ double Spiderweb::getEnergy() const
 			b_sum += term.second * site_fields[term.first];
 		}
 
-		energy += cos(e_sum_xx) / (2.0 * KU) + cos(e_sum_xy) / (2.0 * KU) - cos(b_sum) / 2.0;
+		energy += cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - cos(PI * b_sum) / 2.0;
+	}
+
+	return energy;
+}
+
+std::vector<double> Spiderweb::getLocalEnergies() const
+{
+	std::vector<double> localFluxes(nSites);
+
+	double energy = 0.0;
+	for (int n_site = 0; n_site < nSites; n_site++)
+	{
+		auto e_terms_xx = getElectricTerms_xx(n_site * 3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
+		auto e_terms_xy = getElectricTerms_xy(n_site * 3);	// is a term in the cosine of the hamiltonian
+		auto b_terms = getMagneticTerms(n_site * 3);
+
+		double e_sum_xx = 0.0;
+		for (auto term : e_terms_xx)
+		{
+			e_sum_xx += term.second * site_fields[term.first];
+		}
+		double e_sum_xy = 0.0;
+		for (auto term : e_terms_xy)
+		{
+			e_sum_xy += term.second * site_fields[term.first];
+		}
+
+		double b_sum = 0.0;
+		for (auto term : b_terms)
+		{
+			b_sum += term.second * site_fields[term.first];
+		}
+
+		double b_val = cos(PI * b_sum) / 2.0;
+		double local_energy = cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - b_val;
+		energy += local_energy;
+
+		localFluxes[n_site] = local_energy;
+	}
+
+	return localFluxes;
+}
+
+double Spiderweb::getEnergy(std::vector<double>& localFluxes) const
+{
+	assert(localFluxes.size() == nSites);
+
+	double energy = 0.0;
+	for (int n_site = 0; n_site < nSites; n_site++)
+	{
+		auto e_terms_xx = getElectricTerms_xx(n_site*3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
+		auto e_terms_xy = getElectricTerms_xy(n_site*3);	// is a term in the cosine of the hamiltonian
+		auto b_terms = getMagneticTerms(n_site*3);
+
+		double e_sum_xx = 0.0;
+		for (auto term : e_terms_xx)
+		{
+			e_sum_xx += term.second * site_fields[term.first];
+		}
+		double e_sum_xy = 0.0;
+		for (auto term : e_terms_xy)
+		{
+			e_sum_xy += term.second * site_fields[term.first];
+		}
+
+		double b_sum = 0.0;
+		for (auto term : b_terms)
+		{
+			b_sum += term.second * site_fields[term.first];
+		}
+
+		double b_val = cos(PI * b_sum) / 2.0;
+		double local_energy = cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - b_val;
+		energy += local_energy;
+
+		localFluxes[n_site] = local_energy;
 	}
 
 	return energy;
@@ -66,14 +147,6 @@ double Spiderweb::getEnergy() const
 
 double Spiderweb::proposeSiteFlip(int index, double angle) const
 {
-	// IMPORTANT: because Q_ij involves second derivatives (D_x^2, D_y^2, 4 D_xD_y),
-	// a given field does NOT only appear in the electric/magnetic term centered at
-	// its own site r. It also appears in the terms centered at several NEIGHBORING
-	// sites (the same way a term like (D_x^2 f)(s) = f(s+2x)-2f(s+x)+f(s) means that
-	// changing f(r) affects the term evaluated at s=r, s=r-x AND s=r-2x).
-	// Below we enumerate every (site, term-type) pair whose cosine argument actually
-	// contains site_fields[index], and accumulate cos(new)-cos(old) for each.
-
 	double d_energy = 0.0;
 	int type = index % 3;
 	int site_index = index / 3;
@@ -99,7 +172,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(new_sum) - cos(old_sum));
+			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
 		};
 	auto accumulate_xy = [&](int anchor_field_index, double prefactor)
 		{
@@ -112,7 +185,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(new_sum) - cos(old_sum));
+			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
 		};
 	auto accumulate_b = [&](int anchor_field_index, double prefactor)
 		{
@@ -125,7 +198,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(new_sum) - cos(old_sum));
+			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
 		};
 
 	const double e_pref = 1.0 / (2.0 * KU);
@@ -315,14 +388,4 @@ double Spiderweb::get_field(int site_index, int type) const
 double Spiderweb::get_field(int nx, int ny, int nt, int type) const
 {
 	return get_field(to_site_index(nx, ny, nt), type);
-}
-
-double Spiderweb::mapToCircle(const double& d) const
-{
-	if (d >= 0.5)
-		return d - int(d + 0.5);
-	else if (d <= 0.5)
-		return d - int(d - 0.5);
-	else
-		return d;
 }

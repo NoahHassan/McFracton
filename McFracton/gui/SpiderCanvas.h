@@ -3,26 +3,25 @@
 #include <SFML/Graphics.hpp>
 #include <assert.h>
 
-#include "XYSquare.h"
-#include "QXYSquare.h"
-#include "AbelianGaugeSquare.h"
+#include "Spiderweb.h"
 #include "Square.h"
 
 #define PI 3.1415926535897932384
 
-class Canvas {
+class SpiderCanvas {
 public:
-	Canvas(sf::RenderWindow& window)
+	SpiderCanvas(sf::RenderWindow& window)
 		:
 		window(window)
 	{}
-	Canvas(sf::RenderWindow& window, Vec2D offset)
+	SpiderCanvas(sf::RenderWindow& window, Vec2D offset)
 		:
 		window(window), offset(offset)
 	{}
-	void Initialize(const AbelianGaugeSquare& field, float square_size)
+	void Initialize(const Spiderweb& field, float square_size)
 	{
 		site_pixels = std::vector<Square>(field.linear_size * field.linear_size);
+		localEnergies = std::vector<double>(field.linear_size * field.linear_size * field.temporal_size);
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
 			int ny = n / field.linear_size;
@@ -42,7 +41,7 @@ public:
 			site_pixels[n] = std::move(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, int direction)
+	void Draw(const Spiderweb& field, int direction)
 	{
 		UpdateFieldColors(field, direction);
 		for (const auto& sq : site_pixels)
@@ -50,7 +49,7 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, int direction, int layer)
+	void Draw(const Spiderweb& field, int direction, int layer)
 	{
 		UpdateFieldColors(field, direction, layer);
 		for (const auto& sq : site_pixels)
@@ -58,7 +57,7 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const AbelianGaugeSquare& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer)
+	void Draw(const Spiderweb& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer)
 	{
 		UpdateFieldColors(field, direction, layer);
 		//ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
@@ -67,25 +66,17 @@ public:
 			window.draw(sq);
 		}
 	}
-	void DrawMonopoles(const AbelianGaugeSquare& field, int layer)
+	void DrawEnergy(const Spiderweb& field, int layer, double maxEnergy)
 	{
-		//Interpret pixels as plaquettes now (nSites = nPlaquettes)
-		UpdateMonopoleColors(field, layer);
-		for (const auto& sq : site_pixels)
-		{
-			window.draw(sq);
-		}
-	}
-	void DrawFluxes(const AbelianGaugeSquare& field, int layer)
-	{
-		UpdateFluxColors(field, layer);
+		field.getEnergy(localEnergies);
+		UpdateEnergyColors(field, layer, maxEnergy);
 		for (const auto& sq : site_pixels)
 		{
 			window.draw(sq);
 		}
 	}
 private:
-	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction)
+	void UpdateFieldColors(const Spiderweb& field, int direction)
 	{
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
@@ -97,7 +88,7 @@ private:
 			site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdateFieldColors(const AbelianGaugeSquare& field, int direction, int layer)
+	void UpdateFieldColors(const Spiderweb& field, int direction, int layer)
 	{
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
@@ -110,24 +101,14 @@ private:
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
 		}
 	}
-	void UpdateMonopoleColors(const AbelianGaugeSquare& field, int layer)
+	void UpdateEnergyColors(const Spiderweb& field, int layer, double maxEnergy)
 	{
-		const std::vector<int> monopoles = field.getMonopoles();
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
 			int n_shifted = n + (int)site_pixels.size() * layer;
-			if(monopoles[n_shifted] != 0.0)
-				site_pixels[n].SetFillColor(RedWhiteBlue(monopoles[n_shifted]));
-		}
-	}
-	void UpdateFluxColors(const AbelianGaugeSquare& field, int layer)
-	{
-		const std::vector<double> fluxes = field.getFluxes_z();
-		for (int n = 0; n < field.linear_size * field.linear_size; n++)
-		{
-			int n_shifted = n + (int)site_pixels.size() * layer;
-			//site_pixels[n].SetFillColor(NormalMapYellow(fluxes[n_shifted], 0.3, 0.6, 0.8));
-			site_pixels[n].SetFillColor(BlackWhite(fluxes[n_shifted]));
+			//site_pixels[n].SetFillColor(NormalMapYellow(localEnergies[n_shifted], 0.3, 0.6, 0.8));
+			//site_pixels[n].SetFillColor(GreenRedUniform(localEnergies[n_shifted]));
+			site_pixels[n].SetFillColor(BlackWhite(localEnergies[n_shifted] / maxEnergy));
 		}
 	}
 	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices, int range_min, int range_max)
@@ -156,19 +137,6 @@ private:
 				}
 			}
 		}
-		//std::for_each(vortices.begin(), vortices.end(),
-		//	[&](std::pair<std::vector<int>, int> v) {
-		//		std::for_each(v.first.begin(), v.first.end(),
-		//		[&](int i) {
-		//				if(i >= range_min && i < range_max)
-		//				if (v.second == 1)
-		//					site_pixels[i - range_min].SetFillColor(sf::Color::Blue);
-		//				else if (v.second == -1)
-		//					site_pixels[i - range_min].SetFillColor(sf::Color::Yellow);
-		//			}
-		//		);
-		//	}
-		//);
 	}
 	sf::Color GreenRedUniform(const double& theta)
 	{
@@ -179,10 +147,10 @@ private:
 	}
 	sf::Color BlackWhite(const double& cosine)
 	{
-		max_flux = std::max(abs(cosine), max_flux);
-
-		const double mapped_cos = abs(cosine / max_flux);
-		const int color_val = int(mapped_cos * 255) % 255;
+		// map cos in range (-3,3) to range (0,2) and apply triangle function
+		const double mapped_cos = abs(cosine / 2.0 + 0.5); // lowest energies colored black, highest white
+		//const double n_val = -abs(mapped_cos - 1.0) + 1.0;
+		const int color_val = int(mapped_cos * 510) % 510;
 		return sf::Color(color_val, color_val, color_val);
 
 	}
@@ -208,6 +176,6 @@ private:
 private:
 	sf::RenderWindow& window;
 	std::vector<Square> site_pixels;
-	double max_flux = 0.0;
+	std::vector<double> localEnergies;
 	Vec2D offset{ 0.0f, 0.0f };
 };

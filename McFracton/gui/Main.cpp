@@ -7,6 +7,7 @@
 
 #include "Canvas.h"
 #include "HyperCanvas.h"
+#include "SpiderCanvas.h"
 #include "XYSquare.h"
 #include "QXYSquare.h"
 #include "AbelianGaugeSquare.h"
@@ -19,40 +20,22 @@ int main() {
 
 	using namespace sf;
 
-	{
-		const int linear_size = 8;
-		const int temporal_size = 8;
-		const double KU = 1.0;
-		Spiderweb spiderweb(linear_size, temporal_size, KU);
+	double maxEnergy = 0.01;
 
-		McMachine::NumericalParams params;
-		params.t_max = 100.0;
-		params.t_min = 0.01;
-		params.max_therm_sweeps = 4000;
-		params.updates_per_sweep = linear_size * linear_size * temporal_size;
-		params.n_measurements = 100;
-		params.max_measure_sweeps = 100;
-		params.overrelax = false;
-
-		McMachine machine(params, spiderweb, "spiderweb_test_L=8.txt");
-		machine.StartSimulation();
-		std::cin.get();
-	}
-
-	const int space_layers = 6;
-	const int tau_layers = 6;
-	AbelianGaugeCube hypercubicLattice(space_layers, tau_layers);
+	const int space_layers = 16;
+	const int tau_layers = 16;
+	AbelianGaugeSquare spiderweb(space_layers, tau_layers);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
 	params.t_min = 0.01;
 	params.max_therm_sweeps = 2000;
-	params.n_measurements = 10; // try increasing this a lot
+	params.n_measurements = 10;
 	params.max_measure_sweeps = 500;
 	params.overrelax = true;
 	params.updates_per_overrelaxation = 1000;
-	McMachine machine(params, hypercubicLattice, "3d_abelian_L=6.txt");
+	McMachine machine(params, spiderweb, "spiderweb_L=6_KU=1.txt");
 
-	machine.StartSimulation();
+	//machine.StartSimulation();
 
 	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
@@ -67,12 +50,12 @@ int main() {
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(1.5f);
 
-	HyperCanvas canvas(window, { 200.0f, 0.0f });
-	canvas.Initialize(hypercubicLattice, 15.0);
+	Canvas canvas(window, { 200.0f, 0.0f });
+	canvas.Initialize(spiderweb, 15.0);
 
 	bool pause = true;
 	bool draw_monopoles = false;
-	bool draw_fluxes = false;
+	bool draw_energies = false;
 	int field_direction = 0;
 	bool plot_energies = false;
 
@@ -100,6 +83,10 @@ int main() {
 				{
 					time = (time + 1) % tau_layers;
 				}
+				if (e.key.code == Keyboard::Left)
+				{
+					time = (time - 1 + tau_layers) % tau_layers;
+				}
 
 				if (e.key.code == Keyboard::Space)
 				{
@@ -123,13 +110,13 @@ int main() {
 		//ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
 		//ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
 		ImGui::SliderInt("Field Direction", &field_direction, 0, 2);
-		if (ImGui::Checkbox("Draw Fluxes", &draw_fluxes))
+		if (ImGui::Checkbox("Draw Fluxes", &draw_energies))
 		{
-			draw_monopoles = false;
+			//draw_monopoles = false;
 		}
 		else if (ImGui::Checkbox("Draw Monopoles", &draw_monopoles))
 		{
-			draw_fluxes = false;
+			//draw_energies = false;
 		}
 		ImGui::Checkbox("Plot Energy", &plot_energies);
 		ImGui::Checkbox("Pause", &pause);
@@ -149,12 +136,14 @@ int main() {
 
 		window.clear();
 
-		if (draw_monopoles)
-			canvas.DrawMonopoles(hypercubicLattice, layer, time);
-		else if (draw_fluxes)
-			canvas.DrawFluxes(hypercubicLattice, layer, time);
+		if (draw_energies)
+			canvas.DrawFluxes(spiderweb, time);
 		else
-			canvas.Draw(hypercubicLattice, field_direction, layer, time);
+			canvas.Draw(spiderweb, field_direction, time);
+		if (draw_monopoles) {
+			//spiderweb.Measure(0.1);
+			canvas.DrawMonopoles(spiderweb, time);
+		}
 
 		ImGui::SFML::Render(window);
 		window.display();
@@ -166,8 +155,11 @@ int main() {
 		}
 
 		//double current_energy = (cubicLattice.getEnergy() / temperature) / (cubicLattice.nPlaqs);
-		double current_energy = (hypercubicLattice.getEnergy());
+		double current_energy = (spiderweb.getEnergy());
 		energies.Push((float)current_energy);
+
+		maxEnergy = std::max(maxEnergy, abs(current_energy / spiderweb.nSites));
+		//std::cout << maxEnergy << std::endl;
 	}
 
 	return 0;

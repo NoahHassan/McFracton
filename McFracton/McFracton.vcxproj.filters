@@ -39,6 +39,9 @@
     <ClCompile Include="core\src\AbelianGaugeCube.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="core\src\Spiderweb.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\include\McMachine.h">
@@ -78,6 +81,12 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="gui\HyperCanvas.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\Spiderweb.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\SpiderCanvas.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

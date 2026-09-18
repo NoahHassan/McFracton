@@ -18,6 +18,8 @@ public:
 	~Spiderweb() override = default;
 public:
 	double getEnergy() const;
+	std::vector<double> getLocalEnergies() const;
+	double getEnergy(std::vector<double>& localFluxes) const;
 	double proposeSiteFlip(int index, double angle) const;
 	double proposePlaqFlip(int index, double angle) const;
 	void UpdateSite(int index, double angle);
@@ -41,7 +43,6 @@ private:
 	const int field_index_from_site(int site_index, int type) const;
 	double get_field(int site_index, int type) const;
 	double get_field(int nx, int ny, int nt, int type) const;
-	double mapToCircle(const double& d) const;
 
 	int sgn(double val) const {
 		return (0.0 < val) - (val < 0.0);

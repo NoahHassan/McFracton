@@ -392,12 +392,19 @@ double AbelianGaugeSquare::get_field(int nx, int ny, int nt, int direction) cons
 	return get_field(to_site_index(nx, ny, nt), direction);
 }
 
+//double AbelianGaugeSquare::mapToCircle(const double& d) const
+//{
+//	if (d >= 0.5)
+//		return d - int(d + 0.5);
+//	else if (d <= 0.5)
+//		return d - int(d - 0.5);
+//	else
+//		return d;
+//}
+
 double AbelianGaugeSquare::mapToCircle(const double& d) const
 {
-	if (d >= 0.5)
-		return d - int(d + 0.5);
-	else if (d <= 0.5)
-		return d - int(d - 0.5);
-	else
-		return d;
+	double half = d / 2.0;
+	double wrapped_half = (half >= 0.0) ? half - int(half + 0.5) : half - int(half - 0.5);
+	return 2.0 * wrapped_half;
 }
