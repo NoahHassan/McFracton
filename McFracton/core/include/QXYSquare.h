@@ -6,8 +6,8 @@
 
 class QXYSquare : public System {
 public:
-	QXYSquare(int size, int Ntau);
-	QXYSquare(int size, int Ntau, float K_s, float K_t);
+	QXYSquare(int size, int Ntau, unsigned int seed = 0);
+	QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed = 0);
 	~QXYSquare() override = default;
 public:
 	double getEnergy() const;

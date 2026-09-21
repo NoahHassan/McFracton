@@ -7,7 +7,7 @@
 #define PI 3.1415926535897932384
 #endif
 
-AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size)
+AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size, unsigned int seed)
 	:
 	linear_size(linear_size),
 	temporal_size(temporal_size),
@@ -18,8 +18,8 @@ AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size)
 	site_fields = std::vector<double>(n_site_variables);
 	plaq_fields = std::vector<double>(n_site_variables * 3);
 
-	std::random_device rd;
-	rng = std::mt19937(rd());
+	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
+	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
 	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
@@ -391,16 +391,6 @@ double AbelianGaugeSquare::get_field(int nx, int ny, int nt, int direction) cons
 {
 	return get_field(to_site_index(nx, ny, nt), direction);
 }
-
-//double AbelianGaugeSquare::mapToCircle(const double& d) const
-//{
-//	if (d >= 0.5)
-//		return d - int(d + 0.5);
-//	else if (d <= 0.5)
-//		return d - int(d - 0.5);
-//	else
-//		return d;
-//}
 
 double AbelianGaugeSquare::mapToCircle(const double& d) const
 {

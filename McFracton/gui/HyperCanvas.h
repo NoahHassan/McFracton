@@ -70,15 +70,6 @@ public:
 			window.draw(sq);
 		}
 	}
-	void DrawMonopoles(const AbelianGaugeCube& field, int layer, int time)
-	{
-		//Interpret pixels as plaquettes now (nSites = nPlaquettes)
-		UpdateMonopoleColors(field, layer, time);
-		for (const auto& sq : site_pixels)
-		{
-			window.draw(sq);
-		}
-	}
 	void DrawFluxes(const AbelianGaugeCube& field, int layer, int time)
 	{
 		UpdateFluxColors(field, layer, time);
@@ -111,15 +102,6 @@ private:
 
 			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));
-		}
-	}
-	void UpdateMonopoleColors(const AbelianGaugeCube& field, int layer, int time)
-	{
-		const std::vector<int> monopoles = field.getMonopoles();
-		for (int n = 0; n < planar_size; n++)
-		{
-			int n_shifted = n + cubic_size * time + planar_size * layer;
-			site_pixels[n].SetFillColor(RedWhiteBlue(monopoles[n_shifted]));
 		}
 	}
 	void UpdateFluxColors(const AbelianGaugeCube& field, int layer, int time)

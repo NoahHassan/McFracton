@@ -8,12 +8,12 @@
 #define PI 3.1415926535897932384
 #endif
 
-QXYSquare::QXYSquare(int size, int Ntau)
+QXYSquare::QXYSquare(int size, int Ntau, unsigned int seed)
 	:
-	QXYSquare(size, Ntau, 1.0, 1.0)
+	QXYSquare(size, Ntau, 1.0, 1.0, seed)
 {}
 
-QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t)
+QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed)
 	:
 	size(size),
 	Ntau(Ntau),
@@ -26,8 +26,7 @@ QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t)
 	site_fields = std::vector<double>(n_site_variables);
 	plaq_fields = std::vector<double>(n_site_variables*3);
 
-	std::random_device rd;
-	std::mt19937 rng(rd());
+	std::mt19937 rng(seed != 0 ? seed : std::random_device{}());
 	std::uniform_real_distribution<double> dst;
 
 	std::for_each(site_fields.begin(), site_fields.end(), [&rng, &dst](double& d) {d = dst(rng); });
@@ -53,8 +52,8 @@ double QXYSquare::getEnergy() const
 				int i_u = (nt * size + n_u) * size + nx;
 				int i_t = (n_t * size + ny) * size + nx;
 
-				energy += -K_s * (cos(2.0 * PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(2.0 * PI * (site_fields[i_u] - site_fields[siteIndex])));
-				energy += -K_t * (cos(2.0 * PI * (site_fields[i_t] - site_fields[siteIndex])));
+				energy += -K_s * (cos(PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(PI * (site_fields[i_u] - site_fields[siteIndex])));
+				energy += -K_t * (cos(PI * (site_fields[i_t] - site_fields[siteIndex])));
 			}
 		}
 	}
@@ -69,13 +68,13 @@ double QXYSquare::proposeSiteFlip(int index, double angle) const
 	double flip_energy = 0.0;
 	for (const int& csite : connectedSites.first)
 	{
-		flip_energy += -K_s * (cos(2.0 * PI * (site_fields[index] + angle - site_fields[csite])) - cos(2.0 * PI * (site_fields[index] - site_fields[csite])));
+		flip_energy += -K_s * (cos(PI * (site_fields[index] + angle - site_fields[csite])) - cos(PI * (site_fields[index] - site_fields[csite])));
 	}
 	for (const int& tsite : connectedSites.second)
 	{
 		double dTheta = site_fields[index] - site_fields[tsite];
 		double dTheta_f = dTheta + angle;
-		flip_energy += -K_t * (cos(2.0 * PI * dTheta_f) - cos(2.0 * PI * dTheta));
+		flip_energy += -K_t * (cos(PI * dTheta_f) - cos(PI * dTheta));
 	}
 
 	return flip_energy;
@@ -232,10 +231,7 @@ const std::pair<std::vector<int>, std::vector<int>> QXYSquare::getPlaqConnectedC
 
 double QXYSquare::mapToCircle(const double& d) const
 {
-	if (d >= 0.5)
-		return d - int(d + 0.5);
-	else if (d <= 0.5)
-		return d - int(d - 0.5);
-	else
-		return d;
+	double half = d / 2.0;
+	double wrapped_half = (half >= 0.0) ? half - int(half + 0.5) : half - int(half - 0.5);
+	return 2.0 * wrapped_half;
 }

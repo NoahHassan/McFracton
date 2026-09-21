@@ -7,7 +7,7 @@
 #define PI 3.1415926535897932384
 #endif
 
-AbelianGaugeCube::AbelianGaugeCube(int linear_size, int temporal_size)
+AbelianGaugeCube::AbelianGaugeCube(int linear_size, int temporal_size, unsigned int seed)
 	:
 	linear_size(linear_size),
 	temporal_size(temporal_size),
@@ -18,8 +18,8 @@ AbelianGaugeCube::AbelianGaugeCube(int linear_size, int temporal_size)
 	site_fields = std::vector<double>(n_site_variables);
 	plaq_fields = std::vector<double>(n_site_variables * 3);
 
-	std::random_device rd;
-	rng = std::mt19937(rd());
+	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
+	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
 	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
@@ -128,121 +128,6 @@ void AbelianGaugeCube::OverrelaxSite(int index)
 	site_fields[to_site_index(nx, ny, nz, (nt - 1 + temporal_size) % temporal_size) * 4 + 3] += random_shift;
 }
 
-/// <summary>
-/// Returns a vector of the integer monople values at each plaquette
-/// </summary>
-/// <returns></returns>
-std::vector<int> AbelianGaugeCube::getMonopoles() const
-{
-	std::vector<int> monopoles(nSites*8);
-	const int cube_size = linear_size * linear_size * linear_size;
-	const int plane_size = linear_size * linear_size;
-	for (int n_space = 0; n_space < cube_size; n_space++)
-	{
-		for (int nt = 0; nt < temporal_size; nt++)
-		{
-			int nz = n_space / plane_size;
-			int ny = (n_space % plane_size) / linear_size;
-			int nx = n_space % linear_size;
-
-			// Because every site corresponds to 6 plaquettes
-			// 0:xy, 1:xz, 2:xt, 3:yz, 4:yt, 5:zt
-			std::vector<std::pair<int, int>> hypercube_faces = {
-				// connected to (0,0,0,0) [all positive]
-				{to_site_index(nx, ny, nz, nt), 0}, // xy 0
-				{to_site_index(nx, ny, nz, nt), 1}, // xz 1
-				{to_site_index(nx, ny, nz, nt), 2}, // xt 2
-				{to_site_index(nx, ny, nz, nt), 3}, // yz 3
-				{to_site_index(nx, ny, nz, nt), 4}, // yt 4
-				{to_site_index(nx, ny, nz, nt), 5}, // zt 5
-
-				// [all positive]
-				// connected to (1,1,0,0)
-				{to_site_index((nx + 1) % linear_size, (ny + 1) % linear_size, nz, nt), 5},   // zt 6
-
-				// connected to (1,0,1,0)
-				{to_site_index((nx + 1) % linear_size, ny, (nz + 1) % linear_size, nt), 4},   // yt 7
-
-				// connected to (1,0,0,1)
-				{to_site_index((nx + 1) % linear_size, ny, nz, (nt + 1) % temporal_size), 3}, // yz 8
-
-				// connected to (0,1,1,0)
-				{to_site_index(nx, (ny + 1) % linear_size, (nz + 1) % linear_size, nt), 2},	  // xt 9
-
-				// connected to (0,1,0,1)
-				{to_site_index(nx, (ny + 1) % linear_size, nz, (nt + 1) % temporal_size), 1}, // xz 10
-
-				// connected to (0,0,1,1)
-				{to_site_index(nx, ny, (nz + 1) % linear_size, (nt + 1) % temporal_size), 0}, // xy 11
-
-				// [all negative]
-				// connected to (1,0,0,0)
-				{to_site_index((nx + 1) % linear_size, ny, nz, nt), 3}, // yz 12
-				{to_site_index((nx + 1) % linear_size, ny, nz, nt), 4}, // yt 13
-				{to_site_index((nx + 1) % linear_size, ny, nz, nt), 5}, // zt 14
-
-				// connected to (0,1,0,0)
-				{to_site_index(nx, (ny + 1) % linear_size, nz, nt), 1}, // xz 15
-				{to_site_index(nx, (ny + 1) % linear_size, nz, nt), 2}, // xt 16
-				{to_site_index(nx, (ny + 1) % linear_size, nz, nt), 5}, // zt 17
-
-				// connected to (0,0,1,0)
-				{to_site_index(nx, ny, (nz + 1) % linear_size, nt), 0}, // xy 18
-				{to_site_index(nx, ny, (nz + 1) % linear_size, nt), 2}, // xt 19
-				{to_site_index(nx, ny, (nz + 1) % linear_size, nt), 4}, // yt 20
-
-				// connected to (0,0,0,1)
-				{to_site_index(nx, ny, nz, (nt + 1) % temporal_size), 0}, // xy 21
-				{to_site_index(nx, ny, nz, (nt + 1) % temporal_size), 1}, // xz 22
-				{to_site_index(nx, ny, nz, (nt + 1) % temporal_size), 3}  // yz 23
-			};
-
-			std::vector<std::vector<int>> cubes = {
-				{0,1,3,18,15,12},	// xy xz yz, xy xz yz (+ - +)
-				{21,22,23,11,10,8}, // xy xz yz, xy xz yz (+ - +)
-
-				{2,1,5,19,22,14},	// xt xz zt, xt xz zt (+ - +)
-				{16,15,17,9,10,6},	// xt xz zt, xt xz zt (+ - +)
-				{4,3,5,20,23,17},	// yt yz zt, yt yz zt (+ - +)
-				{13,8,14,7,12,6},	// yt yz zt, yt yz zt (+ - +)
-				{0,1,4,21,16,13},	// xy xt yt, xy xt yt (+ - +)
-				{11,19,20,18,9,7}	// xy xt yt, xy xt yt (+ - +)
-			};
-
-			// loop through all cubes of the hypercube boundary
-			for (int i = 0; i < 8; i++)
-			{
-				double divergence = 0.0;
-
-				// get individual cube of the boundary
-				std::vector<int> cube_face_indices = cubes[i];
-				
-				// loop over all faces of the cube
-				for (int n_face = 0; n_face < cube_face_indices.size(); n_face++)
-				{
-					// flux sign depends on front/back, left/right, top/bottom
-					// according to the curl definitions below and the ordering in the
-					// struct above the signs must be + - + - + -
-					double flux_sign = double(1 - 2 * (i % 2));
-
-					// get actual face in spacetime
-					auto hypercube_face = hypercube_faces[cube_face_indices[n_face]];
-					int plaqIndex = hypercube_face.first * 6 + hypercube_face.second;
-
-					// calculate the flux
-					divergence += mapToCircle(flux_sign * sum_plaquette(getPlaqConnectedFields(plaqIndex)));
-				}
-
-				if (divergence >= 1.0 - 1e-5 || divergence <= -1.0 + 1e-5)
-				{
-					monopoles[to_site_index(nx, ny, nz, nt) + i] = (int)divergence;
-				}
-			}
-		}
-	}
-	return monopoles;
-}
-
 std::vector<double> AbelianGaugeCube::getFluxes_z() const
 {
 	std::vector<double> fluxes(nSites);
@@ -259,7 +144,7 @@ std::vector<double> AbelianGaugeCube::getFluxes_z() const
 			double flux = mapToCircle(
 				sum_plaquette(
 					getPlaqConnectedFields(
-						to_site_index(nx, ny, nz, nt) * 4 + 0
+						to_site_index(nx, ny, nz, nt) * 6 + 0
 					)
 				)
 			);
@@ -286,19 +171,9 @@ System::Observables AbelianGaugeCube::Measure(double T) const
 	observables.energy = getEnergy();
 	observables.helicity_modulus = 0.0;
 
-	int n_a = 0;
-	int n_b = 0;
-	const auto monopoles = getMonopoles();
-	for (int n = 0; n < monopoles.size(); n++)
-	{
-		if (monopoles[n] < 0)
-			n_b++;
-		else if (monopoles[n] > 0)
-			n_a++;
-	}
-
-	observables.n_defects_a = n_a;
-	observables.n_defects_b = n_b;
+	// Monopole counting was removed with getMonopoles(); the 3+1D defect density is not measured.
+	observables.n_defects_a = 0;
+	observables.n_defects_b = 0;
 
 	int plane_size = linear_size * linear_size;
 	int cube_size = plane_size * linear_size;
@@ -309,9 +184,9 @@ System::Observables AbelianGaugeCube::Measure(double T) const
 		for (int nt = 0; nt < temporal_size; nt++)
 		{
 			int site_index = cube_size * nt + n_space;
-			field_sum += get_field(site_index, 4);
+			field_sum += get_field(site_index, 3);
 		}
-		loops[n_space] = cos(field_sum);
+		loops[n_space] = cos(PI * field_sum);
 	}
 
 	double polyakov_loop_mean = 0.0;
@@ -570,10 +445,7 @@ double AbelianGaugeCube::get_field(int nx, int ny, int nz, int nt, int direction
 
 double AbelianGaugeCube::mapToCircle(const double& d) const
 {
-	if (d >= 0.5)
-		return d - int(d + 0.5);
-	else if (d <= 0.5)
-		return d - int(d - 0.5);
-	else
-		return d;
+	double half = d / 2.0;
+	double wrapped_half = (half >= 0.0) ? half - int(half + 0.5) : half - int(half - 0.5);
+	return 2.0 * wrapped_half;
 }

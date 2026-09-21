@@ -9,12 +9,11 @@ public:
 	{
 		t0 = std::chrono::steady_clock::now();
 	}
+	// Seconds since construction or the last reset().
 	float elapsed() const
 	{
-		std::chrono::steady_clock::time_point t1;
-		t1 = std::chrono::steady_clock::now();
-		auto dt = t1 - t0;
-		return (float)dt.count();
+		const std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+		return std::chrono::duration<float>(t1 - t0).count();
 	}
 	void reset()
 	{

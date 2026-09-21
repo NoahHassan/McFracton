@@ -7,7 +7,7 @@
 
 class AbelianGaugeCube : public System {
 public:
-	AbelianGaugeCube(int linear_size, int temporal_size);
+	AbelianGaugeCube(int linear_size, int temporal_size, unsigned int seed = 0);
 	~AbelianGaugeCube() override = default;
 public:
 	double getEnergy() const;
@@ -17,7 +17,6 @@ public:
 	void UpdateSite(int index, double angle);
 	void UpdatePlaq(int index, double angle);
 	virtual void OverrelaxSite(int index) override;
-	std::vector<int> getMonopoles() const;
 	std::vector<double> getFluxes_z() const;
 	Observables Measure(double T) const;
 	//void LogToFile(std::ofstream& outfile) const;

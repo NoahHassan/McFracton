@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <string>
 
 #include "System.h"
 #include "BufferedArray.h"
@@ -27,9 +28,9 @@ public:
 		std::vector<double> rho;
 	};
 public:
-	McMachine(NumericalParams params, System& system, std::string filename);
+	McMachine(NumericalParams params, System& system, std::string filename = "log.txt", unsigned int seed = 0);
 public:
-	void Sweep(int nUpdates, const double temperature);
+	void Sweep(int nUpdates, const double temperature, bool adapt_step = true);
 	void Overrelax(int nUpdates);
 	void StartSimulation();
 private:
@@ -41,8 +42,9 @@ private:
 	std::mt19937 rng;
 	std::uniform_int_distribution<int> site_dst;
 	std::uniform_real_distribution<double> eps_dst;
-	std::uniform_real_distribution<float> acc_dst;
+	std::uniform_real_distribution<double> acc_dst;
 	System& system;
+	std::string logfile_name;
 	std::ofstream logfile;
 	double acceptance_ratio;
 	int current_nSweeps;

@@ -14,7 +14,7 @@
 
 class Spiderweb : public System {
 public:
-	Spiderweb(int linear_size, int temporal_size, double KU);
+	Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed = 0);
 	~Spiderweb() override = default;
 public:
 	double getEnergy() const;
@@ -24,7 +24,6 @@ public:
 	double proposePlaqFlip(int index, double angle) const;
 	void UpdateSite(int index, double angle);
 	void UpdatePlaq(int index, double angle);
-	virtual void OverrelaxSite(int index) override;
 	Observables Measure(double T) const;
 public:
 	const int linear_size;

@@ -11,7 +11,7 @@
 #define PI 3.1415926535897932384
 #endif
 
-Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU)
+Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed)
 	:
 	linear_size(linear_size),
 	spatial_size(linear_size * linear_size),
@@ -24,8 +24,8 @@ Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU)
 	site_fields = std::vector<double>(n_site_variables);
 	plaq_fields = std::vector<double>(n_plaq_variables);
 
-	std::random_device rd;
-	rng = std::mt19937(rd());
+	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
+	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
 	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
@@ -255,10 +255,10 @@ void Spiderweb::UpdatePlaq(int index, double angle)
 	plaq_fields[index] += angle;
 }
 
-void Spiderweb::OverrelaxSite(int index)
-{
-	// Do a gauge transformation A_ij --> Q_ij f with weird Q_ij
-}
+//void Spiderweb::OverrelaxSite(int index)
+//{
+//	// Do a gauge transformation A_ij --> Q_ij f with weird Q_ij
+//}
 
 System::Observables Spiderweb::Measure(double T) const
 {
@@ -382,7 +382,7 @@ const int Spiderweb::field_index_from_site(int site_index, int type) const
 
 double Spiderweb::get_field(int site_index, int type) const
 {
-	return site_fields[site_index + type * 3];
+	return site_fields[site_index * 3 + type];
 }
 
 double Spiderweb::get_field(int nx, int ny, int nt, int type) const

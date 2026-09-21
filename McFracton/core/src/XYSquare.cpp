@@ -37,7 +37,7 @@ double XYSquare::getEnergy() const
 			int i_r = ny * size + nx_r;
 			int i_u = ny_u * size + nx;
 
-			energy += cos(2.0 * PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(2.0 * PI * (site_fields[i_u] - site_fields[siteIndex]));
+			energy += cos(PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(PI * (site_fields[i_u] - site_fields[siteIndex]));
 		}
 	}
 
@@ -57,7 +57,7 @@ double XYSquare::getSinSqrX() const
 			int nx_r = (nx + 1) % size;
 			int i_r = ny * size + nx_r;
 
-			result += sin(2.0 * PI * (site_fields[i_r] - site_fields[siteIndex]));
+			result += sin(PI * (site_fields[i_r] - site_fields[siteIndex]));
 		}
 	}
 
@@ -70,7 +70,7 @@ double XYSquare::proposeSiteFlip(int index, double angle) const
 
 	double flip_energy = 0.0;
 	for (const int& csite : connectedSites) {
-		flip_energy += cos(2.0 * PI * (site_fields[index] + angle - site_fields[csite])) - cos(2.0 * PI * (site_fields[index] - site_fields[csite]));
+		flip_energy += cos(PI * (site_fields[index] + angle - site_fields[csite])) - cos(PI * (site_fields[index] - site_fields[csite]));
 	}
 
 	return -flip_energy;
@@ -111,7 +111,7 @@ std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 			vortex += mapToCircle(d2 - d1);
 		}
 
-		if (vortex >= 1.0 - 1e-5 || vortex <= -1.0 + 1e-5)
+		if (vortex >= 2.0 - 1e-5 || vortex <= -2.0 + 1e-5)
 		{
 			vortices.push_back(std::pair<std::vector<int>, int>(plaq_sites, sgn(vortex)));
 		}
@@ -172,22 +172,22 @@ const std::pair<std::vector<int>, std::vector<int>> XYSquare::getSiteConnectedCl
 
 const std::pair<std::vector<int>, std::vector<int>> XYSquare::getPlaqConnectedCluster(int plaqIndex) const
 {
-	int ny = plaqIndex / (size - 1);
-	int nx = plaqIndex - ny * (size - 1);
+	int ny = plaqIndex / size;
+	int nx = plaqIndex - ny * size;
+
+	int nx_r = (nx + 1) % size;
+	int ny_u = (ny + 1) % size;
 
 	int site_bl = size * ny + nx;
-	int site_br = size * ny + nx + 1;
-	int site_tl = size * (ny + 1) + nx;
-	int site_tr = size * (ny + 1) + nx + 1;
+	int site_br = size * ny + nx_r;
+	int site_tl = size * ny_u + nx;
+	int site_tr = size * ny_u + nx_r;
 	return std::pair<std::vector<int>, std::vector<int>>({ site_bl, site_br, site_tr, site_tl }, {});
 }
 
 double XYSquare::mapToCircle(const double& d) const
 {
-	if (d >= 0.5)
-		return d - int(d + 0.5);
-	else if (d <= 0.5)
-		return d - int(d - 0.5);
-	else
-		return d;
+	double half = d / 2.0;
+	double wrapped_half = (half >= 0.0) ? half - int(half + 0.5) : half - int(half - 0.5);
+	return 2.0 * wrapped_half;
 }

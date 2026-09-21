@@ -3,8 +3,9 @@
 #include <iostream>
 #include <assert.h>
 #include <numeric>
+#include <cmath>
 
-McMachine::McMachine(NumericalParams params, System& system, std::string filename = "log.txt")
+McMachine::McMachine(NumericalParams params, System& system, std::string filename, unsigned int seed)
 	:
 	params(params),
 	system(system),
@@ -12,18 +13,19 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	current_nSweeps(params.initial_therm_sweeps),
 	current_measurement_sweeps(params.initial_therm_sweeps)
 {
-	std::random_device rd;
-	rng = std::mt19937(rd());
+	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
+	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	site_dst = std::uniform_int_distribution<int>(0, system.n_site_variables - 1);
 	eps_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
-	acc_dst = std::uniform_real_distribution<float>(0.0f, 1.0f);
+	acc_dst = std::uniform_real_distribution<double>(0.0, 1.0);
 
-	logfile = std::ofstream(filename);
+	logfile_name = filename;
 }
 
-void McMachine::Sweep(int nUpdates, const double temperature)
+void McMachine::Sweep(int nUpdates, const double temperature, bool adapt_step)
 {
-	params.delta = std::max(1e-10, std::min(params.delta / (2.0 * (1.0 - acceptance_ratio)), 1.0));
+	if (adapt_step)
+		params.delta = std::max(1e-10, std::min(params.delta / (2.0 * (1.0 - acceptance_ratio)), 1.0));
 	int n_accept = 0;
 	for (int n = 0; n < nUpdates; n++)
 	{
@@ -54,6 +56,7 @@ void McMachine::Overrelax(int nUpdates)
 
 void McMachine::StartSimulation()
 {
+	logfile = std::ofstream(logfile_name);
 	assert(logfile.is_open());
 	logfile << "T\tEnergy\tDE\tHelicity Modulus\tDHM\tdefects_a\tDna\tdefects_b\tDnb\tPolyakov Loop\tDPL\tautocorrelation\tn_sweeps\tacceptance\n";
 
@@ -85,21 +88,7 @@ void McMachine::Thermalize(int maxSweeps, BufferedArray& energies, const double 
 		Sweep(params.updates_per_sweep, temperature);
 		if (params.overrelax)
 		{
-			//double energy_a = system.getEnergy();
 			Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//Overrelax(params.updates_per_overrelaxation);
-			//double energy_b = system.getEnergy();
-			//double diff = energy_a - energy_b;
-			//std::cout << diff << std::endl;
 		}
 		if(params.log_energies)
 			energies.Push((float)system.getEnergy());
@@ -119,7 +108,7 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 		for (int m = 0; m < n_measure_sweeps; m++)
 		{
 			energies.push_back(system.getEnergy());
-			Sweep(params.updates_per_sweep, (float)temperature);
+			Sweep(params.updates_per_sweep, temperature, false);
 		}
 		if (params.overrelax)
 		{
@@ -129,38 +118,39 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 	}
 
 	// Compute observables
-	System::Observables means;
-	System::Observables s_sqr;
-	int N = (int)observables_T.size();
-	for (int n = 0; n < N; n++)
-	{
-		means.energy += observables_T[n].energy / N;
-		means.helicity_modulus += observables_T[n].helicity_modulus / N;
-		means.n_defects_a += observables_T[n].n_defects_a;
-		means.n_defects_b += observables_T[n].n_defects_b;
-		means.polyakov_loop += observables_T[n].polyakov_loop / N;
-	}
-	means.n_defects_a /= N;
-	means.n_defects_b /= N;
+	const int N = (int)observables_T.size();
 
-	for (int n = 0; n < N; n++)
-	{
-		s_sqr.energy += std::pow((observables_T[n].energy - means.energy), 2.0f) / N;
-		s_sqr.helicity_modulus += std::pow((observables_T[n].helicity_modulus - means.helicity_modulus), 2.0f) / N;
-		s_sqr.n_defects_a += (int)std::pow((observables_T[n].n_defects_a - means.n_defects_a), 2.0f);
-		s_sqr.n_defects_b += (int)std::pow((observables_T[n].n_defects_b - means.n_defects_b), 2.0f);
-		s_sqr.polyakov_loop += std::pow((observables_T[n].polyakov_loop - means.polyakov_loop), 2.0f) / N;
-	}
-	s_sqr.n_defects_a /= N;
-	s_sqr.n_defects_b /= N;
+	auto mean_of = [&](auto getter) {
+		double sum = 0.0;
+		for (int n = 0; n < N; n++)
+			sum += (double)getter(observables_T[n]);
+		return sum / N;
+		};
+	auto error_of = [&](auto getter, double mean) {
+		if (N < 2)
+			return 0.0;
+		double sum_sqr = 0.0;
+		for (int n = 0; n < N; n++)
+		{
+			const double d = (double)getter(observables_T[n]) - mean;
+			sum_sqr += d * d;
+		}
+		return std::sqrt(sum_sqr / (double(N) * double(N - 1)));
+		};
+
+	const double mean_energy = mean_of([](const System::Observables& o) { return o.energy; });
+	const double mean_helicity = mean_of([](const System::Observables& o) { return o.helicity_modulus; });
+	const double mean_defects_a = mean_of([](const System::Observables& o) { return o.n_defects_a; });
+	const double mean_defects_b = mean_of([](const System::Observables& o) { return o.n_defects_b; });
+	const double mean_polyakov = mean_of([](const System::Observables& o) { return o.polyakov_loop; });
 
 	// Log observables
 	logfile << temperature;
-	logfile << '\t' << means.energy << '\t' << s_sqr.energy;
-	logfile << '\t' << means.helicity_modulus << '\t' << s_sqr.helicity_modulus;
-	logfile << '\t' << means.n_defects_a << '\t' << s_sqr.n_defects_a;
-	logfile << '\t' << means.n_defects_b << '\t' << s_sqr.n_defects_b;
-	logfile << '\t' << means.polyakov_loop << '\t' << s_sqr.polyakov_loop;
+	logfile << '\t' << mean_energy << '\t' << error_of([](const System::Observables& o) { return o.energy; }, mean_energy);
+	logfile << '\t' << mean_helicity << '\t' << error_of([](const System::Observables& o) { return o.helicity_modulus; }, mean_helicity);
+	logfile << '\t' << mean_defects_a << '\t' << error_of([](const System::Observables& o) { return o.n_defects_a; }, mean_defects_a);
+	logfile << '\t' << mean_defects_b << '\t' << error_of([](const System::Observables& o) { return o.n_defects_b; }, mean_defects_b);
+	logfile << '\t' << mean_polyakov << '\t' << error_of([](const System::Observables& o) { return o.polyakov_loop; }, mean_polyakov);
 
 	// compute autocorrelation
 	auto ac = Autocorrelation(energies);
@@ -168,7 +158,7 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 	int required = static_cast<int>(std::max(10, (int)std::ceil(2.0 * ac.tau_int * 10)));
 
 	current_nSweeps = std::min(params.max_therm_sweeps, required);
-	current_measurement_sweeps = std::min(params.max_therm_sweeps, required);
+	current_measurement_sweeps = std::min(params.max_measure_sweeps, required);
 	std::cout << "required sweeps: " << required << ", setting nSweeps = " << current_nSweeps << std::endl;
 
 	logfile << '\t' << required << '\t' << current_nSweeps << '\t' << acceptance_ratio;

@@ -7,7 +7,7 @@
 
 class AbelianGaugeSquare : public System {
 public:
-	AbelianGaugeSquare(int linear_size, int temporal_size);
+	AbelianGaugeSquare(int linear_size, int temporal_size, unsigned int seed = 0);
 	~AbelianGaugeSquare() override = default;
 public:
 	double getEnergy() const;
