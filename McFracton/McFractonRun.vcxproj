@@ -99,6 +99,8 @@
     <ClInclude Include="core\include\AbelianGaugeCube.h" />
     <ClInclude Include="core\include\AbelianGaugeSquare.h" />
     <ClInclude Include="core\include\BufferedArray.h" />
+    <ClInclude Include="core\include\Lattice.h" />
+    <ClInclude Include="core\include\MathUtil.h" />
     <ClInclude Include="core\include\McMachine.h" />
     <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\Spiderweb.h" />

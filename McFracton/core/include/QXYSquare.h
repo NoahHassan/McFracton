@@ -2,6 +2,7 @@
 
 #include <fstream>
 
+#include "Lattice.h"
 #include "System.h"
 
 class QXYSquare : public System {
@@ -28,11 +29,9 @@ public:
 	float K_t;
 private:
 	// first is real-space, second is tau-space
-	const std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
-	const std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;
-	double mapToCircle(const double& d) const;
-
-	int sgn(double val) const {
-		return (0.0 < val) - (val < 0.0);
-	}
+	std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
+	std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;
+private:
+	// Axes: x, y, tau
+	mcf::PeriodicLattice lattice;
 };

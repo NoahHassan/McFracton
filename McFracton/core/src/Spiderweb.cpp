@@ -2,14 +2,14 @@
 
 #include <assert.h>
 
+#include "MathUtil.h"
+
 // A fields are treated as:
 // 0: A0
 // 1: Axx
 // 2: Axy
 
-#ifndef PI
-#define PI 3.1415926535897932384
-#endif
+using mcf::kPi;
 
 Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed)
 	:
@@ -17,6 +17,7 @@ Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int
 	spatial_size(linear_size * linear_size),
 	temporal_size(temporal_size),
 	KU(KU),
+	lattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
 	nSites(linear_size * linear_size * temporal_size),
 	nPlaqs(0),
 	System(linear_size * linear_size * temporal_size * 3, 0)
@@ -33,6 +34,25 @@ Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int
 
 double Spiderweb::getEnergy() const
 {
+	std::vector<double> localEnergies(nSites);
+	return accumulateLocalEnergies(localEnergies);
+}
+
+std::vector<double> Spiderweb::getLocalEnergies() const
+{
+	std::vector<double> localEnergies(nSites);
+	accumulateLocalEnergies(localEnergies);
+	return localEnergies;
+}
+
+double Spiderweb::getEnergy(std::vector<double>& localEnergies) const
+{
+	assert(localEnergies.size() == nSites);
+	return accumulateLocalEnergies(localEnergies);
+}
+
+double Spiderweb::accumulateLocalEnergies(std::vector<double>& localEnergies) const
+{
 	// L = 1/2K cos(Q_ij A0 - D0 A_ij) - U/2 cos(Q_ij A_ij)
 	// treat U as inverse temperature, such that T --> infty will make magnetic fluxes proliferate
 	// Hence H = 1/2(KU) cos(Q_ij A_0 - D0 A_ij) - 1/2 cos(Q_ij A_ij)
@@ -42,42 +62,10 @@ double Spiderweb::getEnergy() const
 	double energy = 0.0;
 	for (int n_site = 0; n_site < nSites; n_site++)
 	{
-		auto e_terms_xx = getElectricTerms_xx(n_site*3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
-		auto e_terms_xy = getElectricTerms_xy(n_site*3);	// is a term in the cosine of the hamiltonian
-		auto b_terms = getMagneticTerms(n_site*3);
-
-		double e_sum_xx = 0.0;
-		for (auto term : e_terms_xx)
-		{
-			e_sum_xx += term.second * site_fields[term.first];
-		}
-		double e_sum_xy = 0.0;
-		for (auto term : e_terms_xy)
-		{
-			e_sum_xy += term.second * site_fields[term.first];
-		}
-
-		double b_sum = 0.0;
-		for (auto term : b_terms)
-		{
-			b_sum += term.second * site_fields[term.first];
-		}
-
-		energy += cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - cos(PI * b_sum) / 2.0;
-	}
-
-	return energy;
-}
-
-std::vector<double> Spiderweb::getLocalEnergies() const
-{
-	std::vector<double> localFluxes(nSites);
-
-	double energy = 0.0;
-	for (int n_site = 0; n_site < nSites; n_site++)
-	{
-		auto e_terms_xx = getElectricTerms_xx(n_site * 3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
-		auto e_terms_xy = getElectricTerms_xy(n_site * 3);	// is a term in the cosine of the hamiltonian
+		// (field_index, factor) pairs, such that factor * site_fields[field_index] is a term
+		// in the cosine of the hamiltonian
+		auto e_terms_xx = getElectricTerms_xx(n_site * 3);
+		auto e_terms_xy = getElectricTerms_xy(n_site * 3);
 		auto b_terms = getMagneticTerms(n_site * 3);
 
 		double e_sum_xx = 0.0;
@@ -97,49 +85,11 @@ std::vector<double> Spiderweb::getLocalEnergies() const
 			b_sum += term.second * site_fields[term.first];
 		}
 
-		double b_val = cos(PI * b_sum) / 2.0;
-		double local_energy = cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - b_val;
+		double b_val = cos(kPi * b_sum) / 2.0;
+		double local_energy = cos(kPi * e_sum_xx) / (2.0 * KU) + cos(kPi * e_sum_xy) / (2.0 * KU) - b_val;
 		energy += local_energy;
 
-		localFluxes[n_site] = local_energy;
-	}
-
-	return localFluxes;
-}
-
-double Spiderweb::getEnergy(std::vector<double>& localFluxes) const
-{
-	assert(localFluxes.size() == nSites);
-
-	double energy = 0.0;
-	for (int n_site = 0; n_site < nSites; n_site++)
-	{
-		auto e_terms_xx = getElectricTerms_xx(n_site*3);	// should return vector of (field_index, factor) pairs such that factor * site_fields[field_index]
-		auto e_terms_xy = getElectricTerms_xy(n_site*3);	// is a term in the cosine of the hamiltonian
-		auto b_terms = getMagneticTerms(n_site*3);
-
-		double e_sum_xx = 0.0;
-		for (auto term : e_terms_xx)
-		{
-			e_sum_xx += term.second * site_fields[term.first];
-		}
-		double e_sum_xy = 0.0;
-		for (auto term : e_terms_xy)
-		{
-			e_sum_xy += term.second * site_fields[term.first];
-		}
-
-		double b_sum = 0.0;
-		for (auto term : b_terms)
-		{
-			b_sum += term.second * site_fields[term.first];
-		}
-
-		double b_val = cos(PI * b_sum) / 2.0;
-		double local_energy = cos(PI * e_sum_xx) / (2.0 * KU) + cos(PI * e_sum_xy) / (2.0 * KU) - b_val;
-		energy += local_energy;
-
-		localFluxes[n_site] = local_energy;
+		localEnergies[n_site] = local_energy;
 	}
 
 	return energy;
@@ -155,11 +105,11 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 	int ny = site_vector[1];
 	int nt = site_vector[2];
 
-	int nx_m1 = (nx - 1 + linear_size) % linear_size;
-	int nx_m2 = (nx - 2 + linear_size) % linear_size;
-	int ny_m1 = (ny - 1 + linear_size) % linear_size;
-	int ny_m2 = (ny - 2 + linear_size) % linear_size;
-	int nt_m1 = (nt - 1 + temporal_size) % temporal_size;
+	int nx_m1 = lattice.wrap(0, nx - 1);
+	int nx_m2 = lattice.wrap(0, nx - 2);
+	int ny_m1 = lattice.wrap(1, ny - 1);
+	int ny_m2 = lattice.wrap(1, ny - 2);
+	int nt_m1 = lattice.wrap(2, nt - 1);
 
 	auto accumulate_xx = [&](int anchor_field_index, double prefactor)
 		{
@@ -172,7 +122,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
+			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
 	auto accumulate_xy = [&](int anchor_field_index, double prefactor)
 		{
@@ -185,7 +135,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
+			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
 	auto accumulate_b = [&](int anchor_field_index, double prefactor)
 		{
@@ -198,7 +148,7 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 				if (term.first == index)
 					new_sum += term.second * angle;
 			}
-			d_energy += prefactor * (cos(PI * new_sum) - cos(PI * old_sum));
+			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
 
 	const double e_pref = 1.0 / (2.0 * KU);
@@ -289,13 +239,13 @@ std::vector<std::pair<int, double>> Spiderweb::getElectricTerms_xx(int field_ind
 	std::vector<std::pair<int, double>> electric_terms{};
 
 	// -D0 A_xx = -A_xx(r + t) + A_xx(r)
-	electric_terms.push_back({field_index_from_site(nx, ny, (nt + 1) % temporal_size, 1), -1});
+	electric_terms.push_back({field_index_from_site(nx, ny, lattice.wrap(2, nt + 1), 1), -1});
 	electric_terms.push_back({field_index_from_site(nx, ny, nt, 1), 1});
 
 	// Q_xx A_00 = 4DxDy A_0 = 4A_0(r + x + y) - 4A_0(r + x) - 4A_0(r + y) + 4A_0(r)
-	electric_terms.push_back({ field_index_from_site((nx + 1) % linear_size, (ny + 1) % linear_size, nt, 0), 4 });
-	electric_terms.push_back({ field_index_from_site((nx + 1) % linear_size, ny, nt, 0), -4 });
-	electric_terms.push_back({ field_index_from_site(nx, (ny + 1) % linear_size, nt, 0), -4 });
+	electric_terms.push_back({ field_index_from_site(lattice.wrap(0, nx + 1), lattice.wrap(1, ny + 1), nt, 0), 4 });
+	electric_terms.push_back({ field_index_from_site(lattice.wrap(0, nx + 1), ny, nt, 0), -4 });
+	electric_terms.push_back({ field_index_from_site(nx, lattice.wrap(1, ny + 1), nt, 0), -4 });
 	electric_terms.push_back({ field_index_from_site(nx, ny, nt, 0), 4 });
 
 	return electric_terms;
@@ -317,14 +267,14 @@ std::vector<std::pair<int, double>> Spiderweb::getElectricTerms_xy(int field_ind
 	std::vector<std::pair<int, double>> electric_terms{};
 
 	// -D0 A_xy = -A_xy(r + t) + A_xy(r)
-	electric_terms.push_back({field_index_from_site(nx, ny, (nt + 1) % temporal_size, 2), -1});
+	electric_terms.push_back({field_index_from_site(nx, ny, lattice.wrap(2, nt + 1), 2), -1});
 	electric_terms.push_back({field_index_from_site(nx, ny, nt, 2), 1});
 
 	// Q_xy A_0 = (DxDx - DyDy)A_0 = A_0(r + 2x) - 2A_0(r + x) - A_0(r + 2y) + 2A_0(r + y)
-	electric_terms.push_back({ field_index_from_site((nx + 2) % linear_size, ny, nt, 0), 1 });
-	electric_terms.push_back({ field_index_from_site((nx + 1) % linear_size, ny, nt, 0), -2 });
-	electric_terms.push_back({ field_index_from_site(nx, (ny + 2) % linear_size, nt, 0), -1 });
-	electric_terms.push_back({ field_index_from_site(nx, (ny + 1) % linear_size, nt, 0), 2 });
+	electric_terms.push_back({ field_index_from_site(lattice.wrap(0, nx + 2), ny, nt, 0), 1 });
+	electric_terms.push_back({ field_index_from_site(lattice.wrap(0, nx + 1), ny, nt, 0), -2 });
+	electric_terms.push_back({ field_index_from_site(nx, lattice.wrap(1, ny + 2), nt, 0), -1 });
+	electric_terms.push_back({ field_index_from_site(nx, lattice.wrap(1, ny + 1), nt, 0), 2 });
 
 	return electric_terms;
 }
@@ -342,40 +292,33 @@ std::vector<std::pair<int, double>> Spiderweb::getMagneticTerms(int field_index)
 	// Q_ij A_ij = (DxDx - DyDy) A_xx - 4DxDy A_xy
 
 	// (DxDx - DyDy)A_xx = A_xx(r + 2x) - 2A_xx(r + x) - A_xx(r + 2y) + 2A_xx(r + y)
-	magnetic_terms.push_back({field_index_from_site((nx + 2) % linear_size, ny, nt, 1), 1});
-	magnetic_terms.push_back({field_index_from_site((nx + 1) % linear_size, ny, nt, 1), -2});
-	magnetic_terms.push_back({field_index_from_site(nx, (ny + 2) % linear_size, nt, 1), -1});
-	magnetic_terms.push_back({field_index_from_site(nx, (ny + 1) % linear_size, nt, 1), 2});
+	magnetic_terms.push_back({field_index_from_site(lattice.wrap(0, nx + 2), ny, nt, 1), 1});
+	magnetic_terms.push_back({field_index_from_site(lattice.wrap(0, nx + 1), ny, nt, 1), -2});
+	magnetic_terms.push_back({field_index_from_site(nx, lattice.wrap(1, ny + 2), nt, 1), -1});
+	magnetic_terms.push_back({field_index_from_site(nx, lattice.wrap(1, ny + 1), nt, 1), 2});
 
 	// -4DxDy A_xy = -4A_xy(r + x + y) + 4A_xy(r + x) + 4A_xy(r + y) - 4A_xy(r)
-	magnetic_terms.push_back({field_index_from_site((nx + 1) % linear_size, (ny + 1) % linear_size, nt, 2), -4});
-	magnetic_terms.push_back({field_index_from_site((nx + 1) % linear_size, ny, nt, 2), 4});
-	magnetic_terms.push_back({field_index_from_site(nx, (ny + 1) % linear_size, nt, 2), 4});
+	magnetic_terms.push_back({field_index_from_site(lattice.wrap(0, nx + 1), lattice.wrap(1, ny + 1), nt, 2), -4});
+	magnetic_terms.push_back({field_index_from_site(lattice.wrap(0, nx + 1), ny, nt, 2), 4});
+	magnetic_terms.push_back({field_index_from_site(nx, lattice.wrap(1, ny + 1), nt, 2), 4});
 	magnetic_terms.push_back({field_index_from_site(nx, ny, nt, 2), -4});
 
 	return magnetic_terms;
 }
 
-const int Spiderweb::to_site_index(int nx, int ny, int nt) const
+std::array<int, 3> Spiderweb::index_from_site(int site_index) const
 {
-	return (nt * linear_size + ny) * linear_size + nx;
+	return std::array<int, 3>({ lattice.coord(site_index, 0),
+								lattice.coord(site_index, 1),
+								lattice.coord(site_index, 2) });
 }
 
-const std::array<int, 3> Spiderweb::index_from_site(int site_index) const
+int Spiderweb::field_index_from_site(int nx, int ny, int nt, int type) const
 {
-	int nt = site_index / spatial_size;
-	int ny = (site_index % spatial_size) / linear_size;
-	int nx = site_index % linear_size;
-
-	return std::array<int, 3>({ nx, ny, nt });
+	return lattice.index(nx, ny, nt) * 3 + type;
 }
 
-const int Spiderweb::field_index_from_site(int nx, int ny, int nt, int type) const
-{
-	return to_site_index(nx, ny, nt) * 3 + type;
-}
-
-const int Spiderweb::field_index_from_site(int site_index, int type) const
+int Spiderweb::field_index_from_site(int site_index, int type) const
 {
 	return site_index * 3 + type;
 }
@@ -387,5 +330,5 @@ double Spiderweb::get_field(int site_index, int type) const
 
 double Spiderweb::get_field(int nx, int ny, int nt, int type) const
 {
-	return get_field(to_site_index(nx, ny, nt), type);
+	return get_field(lattice.index(nx, ny, nt), type);
 }

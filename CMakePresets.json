@@ -33,7 +33,8 @@
   "buildPresets": [
     {
       "name": "windows-release",
-      "configurePreset": "windows-release"
+      "configurePreset": "windows-release",
+      "configuration": "Release"
     },
     {
       "name": "linux-release",

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <fstream>
 #include <algorithm>
 #include <array>
 
+#include "Lattice.h"
 #include "System.h"
 
 // On each site are attached:
@@ -33,20 +33,20 @@ public:
 	const int nPlaqs;
 	const double KU;
 private:
+	// Fills one local energy per site and returns their sum; the single implementation behind
+	// getEnergy(), getLocalEnergies() and getEnergy(std::vector<double>&).
+	double accumulateLocalEnergies(std::vector<double>& localEnergies) const;
 	std::vector<std::pair<int, double>> getElectricTerms_xx(int site_index) const;
 	std::vector<std::pair<int, double>> getElectricTerms_xy(int site_index) const;
 	std::vector<std::pair<int, double>> getMagneticTerms(int site_index) const;
-	const int to_site_index(int nx, int ny, int nt) const;
-	const std::array<int, 3> index_from_site(int site_index) const;
-	const int field_index_from_site(int nx, int ny, int nt, int type) const;
-	const int field_index_from_site(int site_index, int type) const;
+	std::array<int, 3> index_from_site(int site_index) const;
+	int field_index_from_site(int nx, int ny, int nt, int type) const;
+	int field_index_from_site(int site_index, int type) const;
 	double get_field(int site_index, int type) const;
 	double get_field(int nx, int ny, int nt, int type) const;
-
-	int sgn(double val) const {
-		return (0.0 < val) - (val < 0.0);
-	}
 private:
+	// Axes: x, y, t
+	mcf::PeriodicLattice lattice;
 	std::mt19937 rng;
 	std::uniform_real_distribution<double> overrelax_dst;
 };

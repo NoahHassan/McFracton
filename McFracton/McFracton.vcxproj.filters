@@ -47,6 +47,12 @@
     <ClInclude Include="core\include\McMachine.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="core\include\Lattice.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\MathUtil.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
     <ClInclude Include="core\include\System.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 class System {
@@ -26,11 +27,11 @@ public:
 	virtual double proposePlaqFlip(int index, double angle) const = 0;
 	virtual void UpdateSite(int index, double angle) = 0;
 	virtual void UpdatePlaq(int index, double angle) = 0;
-	virtual void OverrelaxSite(int index) { throw("OverrelaxSite not implemented"); };
-	virtual void OverrelaxPlaq(int index) { throw("OverrelaxPlaq not implemented"); };
+	virtual void OverrelaxSite(int index) { throw std::logic_error("OverrelaxSite not implemented"); };
+	virtual void OverrelaxPlaq(int index) { throw std::logic_error("OverrelaxPlaq not implemented"); };
 	double getSite(int index) const;
 	double getPlaq(int index) const;
-	virtual Observables Measure(double T) const { throw("Measure not implemented"); return {}; };
+	virtual Observables Measure(double T) const { throw std::logic_error("Measure not implemented"); };
 public:
 	const int n_site_variables;
 	const int n_plaq_variables;

@@ -61,15 +61,6 @@ public:
 			window.draw(sq);
 		}
 	}
-	void Draw(const AbelianGaugeCube& field, std::vector<std::pair<std::vector<int>, int>> vortices, int direction, int layer, int time)
-	{
-		UpdateFieldColors(field, direction, layer, time);
-		//ColorVortices(vortices, layer * field.ss_size, (layer + 1) * field.ss_size);
-		for (const auto& sq : site_pixels)
-		{
-			window.draw(sq);
-		}
-	}
 	void DrawFluxes(const AbelianGaugeCube& field, int layer, int time)
 	{
 		UpdateFluxColors(field, layer, time);
@@ -113,30 +104,6 @@ private:
 			site_pixels[n].SetFillColor(NormalMapYellow(fluxes[n_shifted], 0.3, 0.6, 0.8));
 		}
 	}
-	void ColorVortices(std::vector<std::pair<std::vector<int>, int>> vortices, int range_min, int range_max)
-	{
-		for (auto it = vortices.begin(); it != vortices.end(); ++it)
-		{
-			auto vortex = (*it).first;
-			int type = (*it).second;
-
-			for (int n = 0; n < vortex.size(); n++)
-			{
-				int vortex_index = vortex[n];
-				int num = 0;
-				if (vortex_index > range_min && vortex_index < range_max)
-				{
-					if (type == 1) {
-						num++;
-						site_pixels[vortex_index - range_min].SetFillColor(sf::Color::Blue);
-					}
-					else {
-						site_pixels[vortex_index - range_min].SetFillColor(sf::Color::Yellow);
-					}
-				}
-			}
-		}
-	}
 	sf::Color GreenRedUniform(const double& theta)
 	{
 		const int theta_c = int(std::abs(theta) * 510.0) % 510;
@@ -156,12 +123,11 @@ private:
 	}
 	sf::Color RedWhiteBlue(int n)
 	{
-		if (n == 0)
-			return sf::Color::White;
 		if (n > 0)
 			return sf::Color::Blue;
 		if (n < 0)
 			return sf::Color::Red;
+		return sf::Color::White;
 	}
 private:
 	int cubic_size = -1;

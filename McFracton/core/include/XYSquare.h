@@ -1,13 +1,11 @@
 #pragma once
 
-#include <fstream>
-
+#include "Lattice.h"
 #include "System.h"
 
 class XYSquare : public System {
 public:
 	XYSquare(int size);
-	XYSquare(int size, float temperature);
 	~XYSquare() override = default;
 public:
 	double getEnergy() const;
@@ -22,11 +20,9 @@ public:
 public:
 	const int size;
 private:
-	const std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
-	const std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;
-	double mapToCircle(const double& d) const;
-
-	int sgn(double val) const {
-		return (0.0 < val) - (val < 0.0);
-	}
+	std::pair<std::vector<int>, std::vector<int>> getSiteConnectedCluster(int siteIndex) const;
+	std::pair<std::vector<int>, std::vector<int>> getPlaqConnectedCluster(int plaqIndex) const;
+private:
+	// Axes: x, y
+	mcf::PeriodicLattice lattice;
 };

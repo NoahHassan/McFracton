@@ -4,9 +4,9 @@
 #include <numeric>
 #include <assert.h>
 
-#ifndef PI
-#define PI 3.1415926535897932384
-#endif
+#include "MathUtil.h"
+
+using mcf::kPi;
 
 QXYSquare::QXYSquare(int size, int Ntau, unsigned int seed)
 	:
@@ -21,6 +21,7 @@ QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed
 	K_t(K_t),
 	ss_size(size * size),
 	st_size(size * Ntau),
+	lattice({ size, size, Ntau }, { "x", "y", "tau" }),
 	System(size * size * Ntau, size * size * Ntau * 3)
 {
 	site_fields = std::vector<double>(n_site_variables);
@@ -41,19 +42,15 @@ double QXYSquare::getEnergy() const
 		{
 			for (int nt = 0; nt < Ntau; nt++)
 			{
-				int siteIndex = (nt * size + ny) * size + nx;
+				int siteIndex = lattice.index(nx, ny, nt);
 
 				// No double counting
-				int n_r = (nx + 1) % size;
-				int n_u = (ny + 1) % size;
-				int n_t = (nt + 1) % Ntau;
+				int i_r = lattice.neighbor(siteIndex, 0, +1);
+				int i_u = lattice.neighbor(siteIndex, 1, +1);
+				int i_t = lattice.neighbor(siteIndex, 2, +1);
 
-				int i_r = (nt * size + ny) * size + n_r;
-				int i_u = (nt * size + n_u) * size + nx;
-				int i_t = (n_t * size + ny) * size + nx;
-
-				energy += -K_s * (cos(PI * (site_fields[i_r] - site_fields[siteIndex])) + cos(PI * (site_fields[i_u] - site_fields[siteIndex])));
-				energy += -K_t * (cos(PI * (site_fields[i_t] - site_fields[siteIndex])));
+				energy += -K_s * (cos(kPi * (site_fields[i_r] - site_fields[siteIndex])) + cos(kPi * (site_fields[i_u] - site_fields[siteIndex])));
+				energy += -K_t * (cos(kPi * (site_fields[i_t] - site_fields[siteIndex])));
 			}
 		}
 	}
@@ -68,13 +65,13 @@ double QXYSquare::proposeSiteFlip(int index, double angle) const
 	double flip_energy = 0.0;
 	for (const int& csite : connectedSites.first)
 	{
-		flip_energy += -K_s * (cos(PI * (site_fields[index] + angle - site_fields[csite])) - cos(PI * (site_fields[index] - site_fields[csite])));
+		flip_energy += -K_s * (cos(kPi * (site_fields[index] + angle - site_fields[csite])) - cos(kPi * (site_fields[index] - site_fields[csite])));
 	}
 	for (const int& tsite : connectedSites.second)
 	{
 		double dTheta = site_fields[index] - site_fields[tsite];
 		double dTheta_f = dTheta + angle;
-		flip_energy += -K_t * (cos(PI * dTheta_f) - cos(PI * dTheta));
+		flip_energy += -K_t * (cos(kPi * dTheta_f) - cos(kPi * dTheta));
 	}
 
 	return flip_energy;
@@ -112,12 +109,12 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() co
 			double d2 = site_fields[site_2];
 			double d1 = site_fields[site_1];
 
-			vortex += mapToCircle(d2 - d1);
+			vortex += mcf::mapToCircle(d2 - d1);
 		}
 
 		if (vortex >= 1.0 - 1e-5 || vortex <= -1.0 + 1e-5)
 		{
-			vortices.push_back(std::pair<std::vector<int>, int>(plaq_sites, sgn(vortex)));
+			vortices.push_back(std::pair<std::vector<int>, int>(plaq_sites, mcf::sgn(vortex)));
 		}
 	}
 
@@ -142,12 +139,12 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getTemporalVortices() c
 			double d2 = site_fields[site_2];
 			double d1 = site_fields[site_1];
 
-			vortex += mapToCircle(d2 - d1);
+			vortex += mcf::mapToCircle(d2 - d1);
 		}
 
 		if (vortex >= 1.0 - 1e-5 || vortex <= -1.0 + 1e-5)
 		{
-			vortices.push_back(std::pair<std::vector<int>, int>(plaq_sites, sgn(vortex)));
+			vortices.push_back(std::pair<std::vector<int>, int>(plaq_sites, mcf::sgn(vortex)));
 		}
 	}
 
@@ -161,77 +158,46 @@ void QXYSquare::LogToFile(std::ofstream& outfile) const
 	outfile << "(" << vortexPairs_s.size() << "," << vortexPairs_t.size() << ")";
 }
 
-const std::pair<std::vector<int>, std::vector<int>> QXYSquare::getSiteConnectedCluster(int siteIndex) const
+std::pair<std::vector<int>, std::vector<int>> QXYSquare::getSiteConnectedCluster(int siteIndex) const
 {
-	int nt = siteIndex / (size * size);
-	int ny = (siteIndex - nt * size * size) / size;
-	int nx = siteIndex - nt * size * size - ny * size;
+	int i_u = lattice.neighbor(siteIndex, 1, +1);
+	int i_r = lattice.neighbor(siteIndex, 0, +1);
+	int i_d = lattice.neighbor(siteIndex, 1, -1);
+	int i_l = lattice.neighbor(siteIndex, 0, -1);
 
-	int nx_r = (nx + 1) % size;
-	int nx_l = (nx - 1 + size) % size;
-	int ny_u = (ny + 1) % size;
-	int ny_d = (ny - 1 + size) % size;
-
-	int nt_u = (nt + 1) % Ntau;
-	int nt_d = (nt - 1 + Ntau) % Ntau;
-
-	int i_u = (nt * size + ny_u) * size + nx;
-	int i_r = (nt * size + ny) * size + nx_r;
-	int i_d = (nt * size + ny_d) * size + nx;
-	int i_l = (nt * size + ny) * size + nx_l;
-
-	int it_u = (nt_u * size + ny) * size + nx;
-	int it_d = (nt_d * size + ny) * size + nx;
+	int it_u = lattice.neighbor(siteIndex, 2, +1);
+	int it_d = lattice.neighbor(siteIndex, 2, -1);
 
 	return std::pair<std::vector<int>, std::vector<int>>({ i_u, i_r, i_d, i_l }, { it_u, it_d });
 }
 
-const std::pair<std::vector<int>, std::vector<int>> QXYSquare::getPlaqConnectedCluster(int plaqIndex) const
+std::pair<std::vector<int>, std::vector<int>> QXYSquare::getPlaqConnectedCluster(int plaqIndex) const
 {
 	int plaqType = plaqIndex % 3;
-	int plaqSite = plaqIndex / 3;
+	int i_a = plaqIndex / 3;
 
-	int n_x = plaqSite % size;
-	int n_y = (plaqSite % ss_size) / size;
-	int n_t = plaqSite / ss_size;
-
-	int i_a = plaqSite;
 	int i_b = -1;
 	int i_c = -1;
 	int i_d = -1;
 
-	auto to_index = [&](int mx, int my, int mz) {
-		assert(mz < Ntau);
-		assert(my < size);
-		assert(mx < size);
-		return mz * ss_size + my * size + mx;
-		};
-
 	switch (plaqType)
 	{
-	case 0:
-		i_b = to_index(n_x, (n_y + 1) % size, n_t);
-		i_c = to_index((n_x + 1) % size, (n_y + 1) % size, n_t);
-		i_d = to_index((n_x + 1) % size, n_y, n_t);
+	case 0: // xy
+		i_b = lattice.neighbor(i_a, 1, +1);
+		i_c = lattice.neighbor(i_b, 0, +1);
+		i_d = lattice.neighbor(i_a, 0, +1);
 		break;
-	case 1:
-		i_b = to_index(n_x, n_y, (n_t + 1) % Ntau);
-		i_c = to_index((n_x + 1) % size, n_y, (n_t + 1) % Ntau);
-		i_d = to_index((n_x + 1) % size, n_y, n_t);
+	case 1: // x-tau
+		i_b = lattice.neighbor(i_a, 2, +1);
+		i_c = lattice.neighbor(i_b, 0, +1);
+		i_d = lattice.neighbor(i_a, 0, +1);
 		break;
-	case 2:
-		i_b = to_index(n_x, n_y, (n_t + 1) % Ntau);
-		i_c = to_index(n_x, (n_y + 1) % size, (n_t + 1) % Ntau);
-		i_d = to_index(n_x, (n_y + 1) % size, n_t);
+	case 2: // y-tau
+		i_b = lattice.neighbor(i_a, 2, +1);
+		i_c = lattice.neighbor(i_b, 1, +1);
+		i_d = lattice.neighbor(i_a, 1, +1);
 		break;
 	}
 
 	return std::pair<std::vector<int>, std::vector<int>>({ i_a, i_b, i_c, i_d }, {});
-}
-
-double QXYSquare::mapToCircle(const double& d) const
-{
-	double half = d / 2.0;
-	double wrapped_half = (half >= 0.0) ? half - int(half + 0.5) : half - int(half - 0.5);
-	return 2.0 * wrapped_half;
 }
