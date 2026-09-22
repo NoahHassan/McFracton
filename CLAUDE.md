@@ -46,6 +46,14 @@ build/windows-release/mcf_run --regression --compare McFracton/tests/golden
 ```
 It must be bit-identical unless a change to logged numbers was explicitly agreed.
 
+A change that moves the random stream cannot be checked that way. For those, compare the mean and
+standard error of every observable before and after, built from independent chains:
+```sh
+build/windows-release/mcf_run --stats --seeds 24
+```
+Each line is `system  T  observable  mean  standard_error  n_chains`; the error bar is taken across
+chains, so it already accounts for the correlation within one chain.
+
 ## Notes
 - The GUI runs on SFML 2.x API (`sf::Event` polling, `sf::VideoMode(w, h)`), not SFML 3.
 - `QXYSquare` is out of scope: it must keep compiling, but it is excluded from the regression test.

@@ -20,6 +20,9 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	eps_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 	acc_dst = std::uniform_real_distribution<double>(0.0, 1.0);
 
+	// The initial configuration is the first thing drawn from the stream, before any sweep.
+	system.randomize(rng);
+
 	logfile_name = filename;
 }
 
@@ -51,7 +54,7 @@ void McMachine::Overrelax(int nUpdates)
 	for (int n = 0; n < nUpdates; n++)
 	{
 		int site_index = site_dst(rng);
-		system.overrelax(site_index);
+		system.overrelax(site_index, rng);
 	}
 }
 

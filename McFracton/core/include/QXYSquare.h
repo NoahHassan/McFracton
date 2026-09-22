@@ -1,5 +1,7 @@
 #pragma once
 
+#include <random>
+
 #include "Lattice.h"
 #include "System.h"
 
@@ -9,10 +11,11 @@
 // regression tests. measure() reports the energy only.
 class QXYSquare : public System {
 public:
-	QXYSquare(int size, int Ntau, unsigned int seed = 0);
-	QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed = 0);
+	QXYSquare(int size, int Ntau);
+	QXYSquare(int size, int Ntau, float K_s, float K_t);
 	~QXYSquare() override = default;
 public:
+	void randomize(std::mt19937& rng) override;
 	double getEnergy() const override;
 	double proposeUpdate(int index, double delta) const override;
 	std::vector<std::pair<std::vector<int>, int>> getSpacialVortices() const;

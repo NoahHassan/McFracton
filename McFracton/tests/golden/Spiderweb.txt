@@ -1,3 +1,3 @@
-Spiderweb	T=2	Energy	-43.274992762549239
-Spiderweb	T=1	Energy	-92.551256594831514
-Spiderweb	T=0.5	Energy	-151.97159378054437
+Spiderweb	T=2	Energy	-56.293632826397008
+Spiderweb	T=1	Energy	-69.779893506870394
+Spiderweb	T=0.5	Energy	-130.73772451576247

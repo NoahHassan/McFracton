@@ -30,6 +30,8 @@ public:
 		std::vector<double> rho;
 	};
 public:
+	// Owns the one generator of the run. The constructor seeds it and immediately draws the
+	// system's initial configuration from it, so a single seed reproduces the whole run.
 	McMachine(NumericalParams params, System& system, std::string filename = "log.txt", unsigned int seed = 0);
 public:
 	void Sweep(int nUpdates, const double temperature, bool adapt_step = true);

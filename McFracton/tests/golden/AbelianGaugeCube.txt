@@ -1,6 +1,6 @@
-AbelianGaugeCube	T=2	Energy	-367.16681488883376
-AbelianGaugeCube	T=2	Polyakov Loop	-0.14267221408921912
-AbelianGaugeCube	T=1	Energy	-755.27505720726856
-AbelianGaugeCube	T=1	Polyakov Loop	-0.013434649396633153
-AbelianGaugeCube	T=0.5	Energy	-1089.6558232155114
-AbelianGaugeCube	T=0.5	Polyakov Loop	0.25952535338931731
+AbelianGaugeCube	T=2	Energy	-371.26401840487489
+AbelianGaugeCube	T=2	Polyakov Loop	0.025621930229143081
+AbelianGaugeCube	T=1	Energy	-776.04859303135777
+AbelianGaugeCube	T=1	Polyakov Loop	0.060419628679193108
+AbelianGaugeCube	T=0.5	Energy	-1076.6674397768941
+AbelianGaugeCube	T=0.5	Polyakov Loop	0.34066247652715864

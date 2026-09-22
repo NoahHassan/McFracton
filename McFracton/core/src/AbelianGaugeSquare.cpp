@@ -8,7 +8,7 @@
 
 using mcf::kPi;
 
-AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size, unsigned int seed)
+AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size)
 	:
 	// A_x, A_y, A_t on each site
 	System(mcf::PeriodicLattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
@@ -17,12 +17,12 @@ AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size, unsig
 	temporal_size(temporal_size),
 	nSites(linear_size * linear_size * temporal_size),
 	nPlaqs(linear_size * linear_size * temporal_size * 3)
-{
-	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
-	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
-	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
+{}
 
-	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = overrelax_dst(rng); });
+void AbelianGaugeSquare::randomize(std::mt19937& rng)
+{
+	std::uniform_real_distribution<double> dst(-1.0, 1.0);
+	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = dst(rng); });
 }
 
 double AbelianGaugeSquare::getEnergy() const
@@ -71,8 +71,9 @@ double AbelianGaugeSquare::proposeUpdate(int index, double delta) const
 	}
 }
 
-void AbelianGaugeSquare::overrelax(int index)
+void AbelianGaugeSquare::overrelax(int index, std::mt19937& rng)
 {
+	std::uniform_real_distribution<double> overrelax_dst(-1.0, 1.0);
 	int site_index = index / 3;
 
 	int nt = lattice.coord(site_index, 2);

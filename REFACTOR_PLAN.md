@@ -232,6 +232,22 @@ Each phase ends with a build, the regression check, and a checkpoint where I ask
 - Note: the same seed gives different streams on MSVC and GCC, because `std::uniform_*_distribution` is
   implementation-defined. Runs are reproducible per platform.
 
+**As built:**
+- `System` gains `randomize(std::mt19937&)`, defaulting to a no-op, and `overrelax(int, std::mt19937&)`.
+  The four systems that randomized their fields now do it in `randomize`, with the same distribution as
+  before (uniform(-1,1) for the two gauge systems and Spiderweb, the default [0,1) for QXYSquare).
+  `XYSquare` overrides nothing: it has always started cold, and the no-op default keeps that.
+- `McMachine`'s constructor seeds the generator and calls `system.randomize(rng)` straight away, so the
+  initial configuration is the first thing drawn from the stream and one seed fixes the entire run.
+  The systems' `seed` constructor parameters and their `rng`/`overrelax_dst` members are gone.
+- `mcf_run --stats [--seeds N]` is the statistical check the phase needed, and it stays in the CLI as the
+  tool for any future change to the random stream. It runs N independent chains, cooled through the same
+  temperatures as the regression report, thermalizing with the step size adapting and measuring with it
+  frozen. The error bar is taken **across** chains, so within-chain correlation is already accounted for.
+- Result, 64 chains per system, Phase 2 build against Phase 3 build: 30 comparisons, largest deviation
+  1.9 sigma, none above 3. `XYSquare` came out bit-identical, which is the expected consequence of its
+  `randomize` drawing nothing. New golden files for the other three.
+
 ### Phase 4: Headless CLI for Slurm
 - `SystemRegistry` plus `mcf_run`: a key=value config file with `--key=value` overrides for the system, sizes,
   couplings, `NumericalParams`, `seed` and `out`. Config parsing lives in `cli/main.cpp`, with no new dependency.

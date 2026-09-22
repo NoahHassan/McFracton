@@ -9,12 +9,12 @@
 
 using mcf::kPi;
 
-QXYSquare::QXYSquare(int size, int Ntau, unsigned int seed)
+QXYSquare::QXYSquare(int size, int Ntau)
 	:
-	QXYSquare(size, Ntau, 1.0, 1.0, seed)
+	QXYSquare(size, Ntau, 1.0, 1.0)
 {}
 
-QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed)
+QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t)
 	:
 	System(mcf::PeriodicLattice({ size, size, Ntau }, { "x", "y", "tau" }), size * size * Ntau),
 	size(size),
@@ -24,10 +24,11 @@ QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed
 	nPlaqs(size * size * Ntau * 3),
 	K_s(K_s),
 	K_t(K_t)
-{
-	std::mt19937 rng(seed != 0 ? seed : std::random_device{}());
-	std::uniform_real_distribution<double> dst;
+{}
 
+void QXYSquare::randomize(std::mt19937& rng)
+{
+	std::uniform_real_distribution<double> dst;
 	std::for_each(fields.begin(), fields.end(), [&rng, &dst](double& d) {d = dst(rng); });
 }
 

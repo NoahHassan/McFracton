@@ -11,7 +11,7 @@
 
 using mcf::kPi;
 
-Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed)
+Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU)
 	:
 	System(mcf::PeriodicLattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
 		linear_size * linear_size * temporal_size * 3),
@@ -20,12 +20,12 @@ Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int
 	temporal_size(temporal_size),
 	nSites(linear_size * linear_size * temporal_size),
 	KU(KU)
-{
-	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
-	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
-	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
+{}
 
-	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = overrelax_dst(rng); });
+void Spiderweb::randomize(std::mt19937& rng)
+{
+	std::uniform_real_distribution<double> dst(-1.0, 1.0);
+	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = dst(rng); });
 }
 
 double Spiderweb::getEnergy() const

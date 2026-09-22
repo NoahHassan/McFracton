@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -27,6 +28,10 @@ struct Channel {
 /// same order (measure), so McMachine can build its log header and its statistics without knowing
 /// which system it is running. Visualisation is pure data (channels / fillChannel), so the core
 /// stays free of SFML.
+///
+/// A system owns no random number generator. Every random draw it needs comes from the generator
+/// McMachine passes in, so one seed fixes the whole run: the initial configuration and the Markov
+/// chain alike.
 /// </summary>
 class System {
 public:
@@ -40,12 +45,16 @@ public:
 	double variable(int index) const;
 	const mcf::PeriodicLattice& getLattice() const { return lattice; }
 
+	// Initial configuration. McMachine calls this once, before the first sweep. The default is a
+	// cold start (every variable 0), which is what XYSquare has always started from.
+	virtual void randomize(std::mt19937& rng) {};
+
 	// Metropolis
 	virtual double getEnergy() const = 0;
 	virtual double proposeUpdate(int index, double delta) const = 0;
 	void applyUpdate(int index, double delta);
 	// Unimplemented overrelaxation has to fail loudly rather than silently do nothing.
-	virtual void overrelax(int index) { throw std::logic_error("overrelax not implemented"); };
+	virtual void overrelax(int index, std::mt19937& rng) { throw std::logic_error("overrelax not implemented"); };
 
 	// Measurement. The names are the log-file column names; measure() returns one value per name,
 	// in the same order.

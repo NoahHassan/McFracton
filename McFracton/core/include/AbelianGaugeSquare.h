@@ -9,12 +9,13 @@
 // Axes: x, y, t. A_x, A_y, A_t on every site, so the variable index is site * 3 + direction.
 class AbelianGaugeSquare : public System {
 public:
-	AbelianGaugeSquare(int linear_size, int temporal_size, unsigned int seed = 0);
+	AbelianGaugeSquare(int linear_size, int temporal_size);
 	~AbelianGaugeSquare() override = default;
 public:
+	void randomize(std::mt19937& rng) override;
 	double getEnergy() const override;
 	double proposeUpdate(int index, double delta) const override;
-	void overrelax(int index) override;
+	void overrelax(int index, std::mt19937& rng) override;
 	std::vector<int> getMonopoles() const;
 	std::vector<double> getFluxes_z() const;
 	std::vector<std::string> observableNames() const override;
@@ -37,7 +38,4 @@ private:
 	int to_site_index(int nx, int ny, int nt) const;
 	double get_field(int site_index, int direction) const;
 	double get_field(int nx, int ny, int nt, int direction) const;
-private:
-	std::mt19937 rng;
-	std::uniform_real_distribution<double> overrelax_dst;
 };

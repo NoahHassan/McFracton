@@ -13,9 +13,10 @@
 // Overrelaxation is deliberately not implemented, so it falls back to the base class throw.
 class Spiderweb : public System {
 public:
-	Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed = 0);
+	Spiderweb(int linear_size, int temporal_size, double KU);
 	~Spiderweb() override = default;
 public:
+	void randomize(std::mt19937& rng) override;
 	double getEnergy() const override;
 	std::vector<double> getLocalEnergies() const;
 	double getEnergy(std::vector<double>& localFluxes) const;
@@ -42,7 +43,4 @@ private:
 	int field_index_from_site(int site_index, int type) const;
 	double get_field(int site_index, int type) const;
 	double get_field(int nx, int ny, int nt, int type) const;
-private:
-	std::mt19937 rng;
-	std::uniform_real_distribution<double> overrelax_dst;
 };
