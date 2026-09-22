@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <fstream>
+#include <random>
 #include <string>
+#include <vector>
 
 #include "System.h"
 #include "BufferedArray.h"
@@ -39,6 +41,8 @@ private:
 	AutoCorrResult Autocorrelation(const std::vector<double>& data);
 private:
 	NumericalParams params;
+	// The seed actually used, so a log file records what would reproduce the run.
+	unsigned int seed;
 	std::mt19937 rng;
 	std::uniform_int_distribution<int> site_dst;
 	std::uniform_real_distribution<double> eps_dst;

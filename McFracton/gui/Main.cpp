@@ -24,18 +24,33 @@ int main() {
 
 	const int space_layers = 16;
 	const int tau_layers = 16;
-	AbelianGaugeSquare spiderweb(space_layers, tau_layers);
+	Spiderweb spiderweb(space_layers, tau_layers, 0.5);
 	McMachine::NumericalParams params;
 	params.t_max = 100.0;
 	params.t_min = 0.01;
 	params.max_therm_sweeps = 2000;
 	params.n_measurements = 10;
 	params.max_measure_sweeps = 500;
-	params.overrelax = true;
+	params.overrelax = false;
 	params.updates_per_overrelaxation = 1000;
-	McMachine machine(params, spiderweb, "spiderweb_L=6_KU=1.txt");
+	McMachine machine(params, spiderweb, "spiderweb_L=16_KU=05.txt");
 
-	//machine.StartSimulation();
+	std::ofstream energy_out("spiderweb_L=6_KU=05_shockfreeze.txt");
+	{
+		std::cout << "Bibabutzemann\n";
+		machine.Sweep(100000, 100.0);
+		for (int n = 0; n < 10000; n++)
+		{
+			std::cout << "n = " << n << std::endl;
+			if (n != 0)
+				energy_out << '\t';
+
+			energy_out << spiderweb.getEnergy();
+			machine.Sweep(space_layers * space_layers * tau_layers, 0.1);
+		}
+	}
+
+	machine.StartSimulation();
 
 	RenderWindow window(VideoMode(1900, 1200), "Simulation");
 	window.setVerticalSyncEnabled(true);
@@ -50,7 +65,7 @@ int main() {
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(1.5f);
 
-	Canvas canvas(window, { 200.0f, 0.0f });
+	SpiderCanvas canvas(window, { 200.0f, 0.0f });
 	canvas.Initialize(spiderweb, 15.0);
 
 	bool pause = true;
@@ -137,12 +152,12 @@ int main() {
 		window.clear();
 
 		if (draw_energies)
-			canvas.DrawFluxes(spiderweb, time);
+			canvas.DrawEnergy(spiderweb, time, maxEnergy);
 		else
 			canvas.Draw(spiderweb, field_direction, time);
 		if (draw_monopoles) {
 			//spiderweb.Measure(0.1);
-			canvas.DrawMonopoles(spiderweb, time);
+			//canvas.DrawMonopoles(spiderweb, time);
 		}
 
 		ImGui::SFML::Render(window);
@@ -150,8 +165,9 @@ int main() {
 
 		if (!pause) {
 			machine.Sweep(2000, temperature);
-			if (params.overrelax)
-				machine.Overrelax(500);
+			if (params.overrelax) {
+				//machine.Overrelax(500);
+			}
 		}
 
 		//double current_energy = (cubicLattice.getEnergy() / temperature) / (cubicLattice.nPlaqs);

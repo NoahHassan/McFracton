@@ -14,8 +14,9 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	current_measurement_sweeps(params.initial_therm_sweeps)
 {
 	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
-	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
-	site_dst = std::uniform_int_distribution<int>(0, system.n_site_variables - 1);
+	this->seed = seed != 0 ? seed : std::random_device{}();
+	rng = std::mt19937(this->seed);
+	site_dst = std::uniform_int_distribution<int>(0, system.numVariables() - 1);
 	eps_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 	acc_dst = std::uniform_real_distribution<double>(0.0, 1.0);
 
@@ -31,13 +32,13 @@ void McMachine::Sweep(int nUpdates, const double temperature, bool adapt_step)
 	{
 		int site_index = site_dst(rng);
 		double flip_angle = eps_dst(rng) * params.delta;
-		double dE = system.proposeSiteFlip(site_index, flip_angle);
+		double dE = system.proposeUpdate(site_index, flip_angle);
 
 		double fac = std::exp(-dE / temperature);
 
 		if (dE < 0.0 || acc_dst(rng) < fac)
 		{
-			system.UpdateSite(site_index, flip_angle);
+			system.applyUpdate(site_index, flip_angle);
 			n_accept++;
 		}
 	}
@@ -50,7 +51,7 @@ void McMachine::Overrelax(int nUpdates)
 	for (int n = 0; n < nUpdates; n++)
 	{
 		int site_index = site_dst(rng);
-		system.OverrelaxSite(site_index);
+		system.overrelax(site_index);
 	}
 }
 
@@ -58,7 +59,25 @@ void McMachine::StartSimulation()
 {
 	logfile = std::ofstream(logfile_name);
 	assert(logfile.is_open());
-	logfile << "T\tEnergy\tDE\tHelicity Modulus\tDHM\tdefects_a\tDna\tdefects_b\tDnb\tPolyakov Loop\tDPL\tautocorrelation\tn_sweeps\tacceptance\n";
+	logfile << "# seed\t" << seed << '\n';
+	logfile << "# t_max\t" << params.t_max << "\tt_min\t" << params.t_min
+		<< "\tt_fac\t" << params.t_fac << '\n';
+	logfile << "# updates_per_sweep\t" << params.updates_per_sweep
+		<< "\tinitial_therm_sweeps\t" << params.initial_therm_sweeps
+		<< "\tmax_therm_sweeps\t" << params.max_therm_sweeps
+		<< "\tmax_measure_sweeps\t" << params.max_measure_sweeps
+		<< "\tn_measurements\t" << params.n_measurements << '\n';
+	logfile << "# delta\t" << params.delta << "\toverrelax\t" << params.overrelax
+		<< "\tupdates_per_overrelaxation\t" << params.updates_per_overrelaxation << '\n';
+	logfile << "# variables\t" << system.numVariables() << '\n';
+
+	// The column-header line stays the first non-comment line, so parsers reading with
+	// comment='#' keep working. Every observable gets a value column and a 'D' error column.
+	const std::vector<std::string> observable_names = system.observableNames();
+	logfile << "T";
+	for (const std::string& name : observable_names)
+		logfile << '\t' << name << "\tD" << name;
+	logfile << "\tautocorrelation\tn_sweeps\tacceptance\n";
 
 	const int buffersize = 50;
 	BufferedArray energies(buffersize);
@@ -101,7 +120,8 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 {
 	std::cout << "Measuring" << std::endl;
 
-	std::vector<System::Observables> observables_T;
+	// One row per measurement, each row holding the system's observables in declaration order.
+	std::vector<std::vector<double>> samples;
 	std::vector<double> energies;
 	for (int n = 0; n < n_measurements; n++)
 	{
@@ -114,43 +134,39 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 		{
 			Overrelax(params.updates_per_overrelaxation);
 		}
-		observables_T.push_back(system.Measure(temperature));
+		samples.push_back(system.measure(temperature));
 	}
 
 	// Compute observables
-	const int N = (int)observables_T.size();
+	const int N = (int)samples.size();
+	const int n_observables = N > 0 ? (int)samples[0].size() : 0;
 
-	auto mean_of = [&](auto getter) {
+	auto mean_of = [&](int column) {
 		double sum = 0.0;
 		for (int n = 0; n < N; n++)
-			sum += (double)getter(observables_T[n]);
+			sum += samples[n][column];
 		return sum / N;
 		};
-	auto error_of = [&](auto getter, double mean) {
+	// The error bar of the mean: s/sqrt(N), with s^2 using the N-1 convention.
+	auto error_of = [&](int column, double mean) {
 		if (N < 2)
 			return 0.0;
 		double sum_sqr = 0.0;
 		for (int n = 0; n < N; n++)
 		{
-			const double d = (double)getter(observables_T[n]) - mean;
+			const double d = samples[n][column] - mean;
 			sum_sqr += d * d;
 		}
 		return std::sqrt(sum_sqr / (double(N) * double(N - 1)));
 		};
 
-	const double mean_energy = mean_of([](const System::Observables& o) { return o.energy; });
-	const double mean_helicity = mean_of([](const System::Observables& o) { return o.helicity_modulus; });
-	const double mean_defects_a = mean_of([](const System::Observables& o) { return o.n_defects_a; });
-	const double mean_defects_b = mean_of([](const System::Observables& o) { return o.n_defects_b; });
-	const double mean_polyakov = mean_of([](const System::Observables& o) { return o.polyakov_loop; });
-
 	// Log observables
 	logfile << temperature;
-	logfile << '\t' << mean_energy << '\t' << error_of([](const System::Observables& o) { return o.energy; }, mean_energy);
-	logfile << '\t' << mean_helicity << '\t' << error_of([](const System::Observables& o) { return o.helicity_modulus; }, mean_helicity);
-	logfile << '\t' << mean_defects_a << '\t' << error_of([](const System::Observables& o) { return o.n_defects_a; }, mean_defects_a);
-	logfile << '\t' << mean_defects_b << '\t' << error_of([](const System::Observables& o) { return o.n_defects_b; }, mean_defects_b);
-	logfile << '\t' << mean_polyakov << '\t' << error_of([](const System::Observables& o) { return o.polyakov_loop; }, mean_polyakov);
+	for (int column = 0; column < n_observables; column++)
+	{
+		const double mean = mean_of(column);
+		logfile << '\t' << mean << '\t' << error_of(column, mean);
+	}
 
 	// compute autocorrelation
 	auto ac = Autocorrelation(energies);

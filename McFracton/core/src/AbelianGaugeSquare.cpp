@@ -10,21 +10,19 @@ using mcf::kPi;
 
 AbelianGaugeSquare::AbelianGaugeSquare(int linear_size, int temporal_size, unsigned int seed)
 	:
+	// A_x, A_y, A_t on each site
+	System(mcf::PeriodicLattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
+		linear_size * linear_size * temporal_size * 3),
 	linear_size(linear_size),
 	temporal_size(temporal_size),
-	lattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
 	nSites(linear_size * linear_size * temporal_size),
-	nPlaqs(linear_size * linear_size * temporal_size * 3),
-	System(linear_size * linear_size * temporal_size * 3, 0) // A_x, A_y, A_t on each site
+	nPlaqs(linear_size * linear_size * temporal_size * 3)
 {
-	site_fields = std::vector<double>(n_site_variables);
-	plaq_fields = std::vector<double>(n_site_variables * 3);
-
 	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
 	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
-	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
+	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = overrelax_dst(rng); });
 }
 
 double AbelianGaugeSquare::getEnergy() const
@@ -40,7 +38,7 @@ double AbelianGaugeSquare::getEnergy() const
 	return -energy;
 }
 
-double AbelianGaugeSquare::proposeSiteFlip(int index, double angle) const
+double AbelianGaugeSquare::proposeUpdate(int index, double delta) const
 {
 	int site_index = index / 3;
 	int type = index % 3;
@@ -49,23 +47,23 @@ double AbelianGaugeSquare::proposeSiteFlip(int index, double angle) const
 	int ny = lattice.coord(site_index, 1);
 	int nx = lattice.coord(site_index, 0);
 
-	double current = site_fields[index];
+	double current = fields[index];
 
 	switch (type)
 	{
 	case 0:
 	{
-		return getLocalEnergy_x(nx, ny, nt, current + angle) - getLocalEnergy_x(nx, ny, nt, current);
+		return getLocalEnergy_x(nx, ny, nt, current + delta) - getLocalEnergy_x(nx, ny, nt, current);
 		break;
 	}
 	case 1:
 	{
-		return getLocalEnergy_y(nx, ny, nt, current + angle) - getLocalEnergy_y(nx, ny, nt, current);
+		return getLocalEnergy_y(nx, ny, nt, current + delta) - getLocalEnergy_y(nx, ny, nt, current);
 		break;
 	}
 	case 2:
 	{
-		return getLocalEnergy_t(nx, ny, nt, current + angle) - getLocalEnergy_t(nx, ny, nt, current);
+		return getLocalEnergy_t(nx, ny, nt, current + delta) - getLocalEnergy_t(nx, ny, nt, current);
 		break;
 	}
 	default:
@@ -73,22 +71,7 @@ double AbelianGaugeSquare::proposeSiteFlip(int index, double angle) const
 	}
 }
 
-double AbelianGaugeSquare::proposePlaqFlip(int index, double angle) const
-{
-	return plaq_fields[index];
-}
-
-void AbelianGaugeSquare::UpdateSite(int index, double angle)
-{
-	site_fields[index] += angle;
-}
-
-void AbelianGaugeSquare::UpdatePlaq(int index, double angle)
-{
-	plaq_fields[index] += angle;
-}
-
-void AbelianGaugeSquare::OverrelaxSite(int index)
+void AbelianGaugeSquare::overrelax(int index)
 {
 	int site_index = index / 3;
 
@@ -98,16 +81,16 @@ void AbelianGaugeSquare::OverrelaxSite(int index)
 
 	double random_shift = overrelax_dst(rng);
 	// A_i(r) --> A_i(r) + f(r + i) - f(r) = A_i(r) - f(r)
-	site_fields[to_site_index(nx, ny, nt) * 3 + 0] += -random_shift;
-	site_fields[to_site_index(nx, ny, nt) * 3 + 1] += -random_shift;
-	site_fields[to_site_index(nx, ny, nt) * 3 + 2] += -random_shift;
+	fields[to_site_index(nx, ny, nt) * 3 + 0] += -random_shift;
+	fields[to_site_index(nx, ny, nt) * 3 + 1] += -random_shift;
+	fields[to_site_index(nx, ny, nt) * 3 + 2] += -random_shift;
 
 	// A_x-1(r) --> A_x-1(r) + f(r) - f(r-x) = A_x-1(r) + f(r)
-	site_fields[to_site_index(lattice.wrap(0, nx - 1), ny, nt) * 3 + 0] += random_shift;
+	fields[to_site_index(lattice.wrap(0, nx - 1), ny, nt) * 3 + 0] += random_shift;
 	// A_y-1(r) --> A_y-1(r) + f(r) - f(r-y) = A_y-1(r) + f(r)
-	site_fields[to_site_index(nx, lattice.wrap(1, ny - 1), nt) * 3 + 1] += random_shift;
+	fields[to_site_index(nx, lattice.wrap(1, ny - 1), nt) * 3 + 1] += random_shift;
 	// A_z-1(r) --> A_z-1(r) + f(r) - f(r-z) = A_z-1(r) + f(r)
-	site_fields[to_site_index(nx, ny, lattice.wrap(2, nt - 1)) * 3 + 2] += random_shift;
+	fields[to_site_index(nx, ny, lattice.wrap(2, nt - 1)) * 3 + 2] += random_shift;
 }
 
 /// <summary>
@@ -175,12 +158,15 @@ std::vector<double> AbelianGaugeSquare::getFluxes_z() const
 	return fluxes;
 }
 
-System::Observables AbelianGaugeSquare::Measure(double T) const
+std::vector<std::string> AbelianGaugeSquare::observableNames() const
 {
-	System::Observables observables;
-	observables.energy = getEnergy();
-	observables.helicity_modulus = 0.0;
-	
+	return { "Energy", "defects_a", "defects_b" };
+}
+
+std::vector<double> AbelianGaugeSquare::measure(double temperature) const
+{
+	const double energy = getEnergy();
+
 	int n_a = 0;
 	int n_b = 0;
 	const auto monopoles = getMonopoles();
@@ -192,11 +178,38 @@ System::Observables AbelianGaugeSquare::Measure(double T) const
 			n_a++;
 	}
 
-	observables.n_defects_a = n_a;
-	observables.n_defects_b = n_b;
+	return { energy, (double)n_a, (double)n_b };
+}
 
-	return observables;
-};
+std::vector<Channel> AbelianGaugeSquare::channels() const
+{
+	return { { "A_x", ChannelKind::Angle },
+			 { "A_y", ChannelKind::Angle },
+			 { "A_t", ChannelKind::Angle },
+			 { "flux_xy", ChannelKind::Signed },
+			 { "monopoles", ChannelKind::Integer } };
+}
+
+void AbelianGaugeSquare::fillChannel(int channel, std::vector<double>& out) const
+{
+	out.assign(lattice.size(), 0.0);
+
+	if (0 <= channel && channel <= 2)
+	{
+		for (int site = 0; site < lattice.size(); site++)
+			out[site] = get_field(site, channel);
+		return;
+	}
+	if (channel == 3)
+	{
+		out = getFluxes_z();
+		return;
+	}
+
+	const std::vector<int> monopoles = getMonopoles();
+	for (int site = 0; site < lattice.size(); site++)
+		out[site] = (double)monopoles[site];
+}
 
 double AbelianGaugeSquare::getLocalEnergy_x(int nx, int ny, int nt, double angle) const
 {
@@ -366,7 +379,7 @@ double AbelianGaugeSquare::get_field(int site_index, int direction) const
 	assert(0 <= direction && direction <= 2);
 	assert(site_index <= nSites);
 
-	return site_fields[site_index * 3 + direction];
+	return fields[site_index * 3 + direction];
 }
 
 double AbelianGaugeSquare::get_field(int nx, int ny, int nt, int direction) const

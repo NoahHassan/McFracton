@@ -72,8 +72,8 @@ private:
 		for (int n = 0; n < field.linear_size * field.linear_size; n++)
 		{
 			int field_index = n * 3 + direction;
-			assert(field_index < field.n_site_variables);
-			const double& theta = field.getSite(field_index);
+			assert(field_index < field.numVariables());
+			const double theta = field.variable(field_index);
 
 			//site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			site_pixels[n].SetFillColor(GreenRedUniform(theta));
@@ -85,8 +85,8 @@ private:
 		{
 			int n_shifted = n + (int)site_pixels.size() * layer;
 			int field_index = n_shifted * 3 + direction;
-			assert(field_index < field.n_site_variables);
-			const double& theta = field.getSite(field_index);
+			assert(field_index < field.numVariables());
+			const double theta = field.variable(field_index);
 
 			site_pixels[n].SetFillColor(NormalMapYellow(theta, 0.3, 0.6, 0.8));
 			//site_pixels[n].SetFillColor(GreenRedUniform(theta));

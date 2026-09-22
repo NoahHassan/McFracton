@@ -1,41 +1,63 @@
 #pragma once
 
-#include <random>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
+#include "Lattice.h"
+
+/// <summary>
+/// What a visualisation channel means, which is all the GUI needs in order to pick a colormap.
+/// </summary>
+enum class ChannelKind { Angle, Signed, Integer, Magnitude };
+
+/// <summary>
+/// One scalar field over the lattice that a system can hand out for drawing.
+/// </summary>
+struct Channel {
+	std::string name;
+	ChannelKind kind;
+};
+
+/// <summary>
+/// A system is a set of real variables on a periodic lattice, plus the energy differences that
+/// Metropolis needs, the observables it wants logged, and the fields it wants drawn.
+///
+/// Observables are declared by name once (observableNames) and returned as plain doubles in the
+/// same order (measure), so McMachine can build its log header and its statistics without knowing
+/// which system it is running. Visualisation is pure data (channels / fillChannel), so the core
+/// stays free of SFML.
+/// </summary>
 class System {
 public:
-	struct Observables {
-		double energy = 0.0;
-		double helicity_modulus = 0.0;
-		double polyakov_loop = 0.0;
-		double flux_cos = 0.0;
-		int n_defects_a = 0;
-		int n_defects_b = 0;
-	};
-public:
-	System(int n_site_variables, int n_plaq_variables)
-		: 
-		n_site_variables(n_site_variables), n_plaq_variables(n_plaq_variables)
+	System(mcf::PeriodicLattice site_lattice, int n_variables)
+		:
+		lattice(std::move(site_lattice)), fields(n_variables), n_variables(n_variables)
 	{};
 	virtual ~System() = 0;
 public:
+	int numVariables() const { return n_variables; }
+	double variable(int index) const;
+	const mcf::PeriodicLattice& getLattice() const { return lattice; }
+
+	// Metropolis
 	virtual double getEnergy() const = 0;
-	virtual std::vector<double> getLocalEnergies() const = 0;
-	virtual double proposeSiteFlip(int index, double angle) const = 0;
-	virtual double proposePlaqFlip(int index, double angle) const = 0;
-	virtual void UpdateSite(int index, double angle) = 0;
-	virtual void UpdatePlaq(int index, double angle) = 0;
-	virtual void OverrelaxSite(int index) { throw std::logic_error("OverrelaxSite not implemented"); };
-	virtual void OverrelaxPlaq(int index) { throw std::logic_error("OverrelaxPlaq not implemented"); };
-	double getSite(int index) const;
-	double getPlaq(int index) const;
-	virtual Observables Measure(double T) const { throw std::logic_error("Measure not implemented"); };
-public:
-	const int n_site_variables;
-	const int n_plaq_variables;
+	virtual double proposeUpdate(int index, double delta) const = 0;
+	void applyUpdate(int index, double delta);
+	// Unimplemented overrelaxation has to fail loudly rather than silently do nothing.
+	virtual void overrelax(int index) { throw std::logic_error("overrelax not implemented"); };
+
+	// Measurement. The names are the log-file column names; measure() returns one value per name,
+	// in the same order.
+	virtual std::vector<std::string> observableNames() const = 0;
+	virtual std::vector<double> measure(double temperature) const = 0;
+
+	// Visualisation. fillChannel writes one value per lattice site, so out.size() == lattice.size().
+	virtual std::vector<Channel> channels() const = 0;
+	virtual void fillChannel(int channel, std::vector<double>& out) const = 0;
 protected:
-	std::vector<double> site_fields;
-	std::vector<double> plaq_fields;
+	mcf::PeriodicLattice lattice;
+	std::vector<double> fields;
+private:
+	const int n_variables;
 };

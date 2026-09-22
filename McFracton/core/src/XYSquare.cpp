@@ -9,13 +9,9 @@ using mcf::kPi;
 
 XYSquare::XYSquare(int size)
 	:
-	size(size),
-	lattice({ size, size }, { "x", "y" }),
-	System(size * size, size * size)
-{
-	site_fields = std::vector<double>(n_site_variables);
-	plaq_fields = std::vector<double>(n_site_variables);
-}
+	System(mcf::PeriodicLattice({ size, size }, { "x", "y" }), size * size),
+	size(size)
+{}
 
 double XYSquare::getEnergy() const
 {
@@ -30,7 +26,7 @@ double XYSquare::getEnergy() const
 			int i_r = lattice.neighbor(siteIndex, 0, +1);
 			int i_u = lattice.neighbor(siteIndex, 1, +1);
 
-			energy += cos(kPi * (site_fields[i_r] - site_fields[siteIndex])) + cos(kPi * (site_fields[i_u] - site_fields[siteIndex]));
+			energy += cos(kPi * (fields[i_r] - fields[siteIndex])) + cos(kPi * (fields[i_u] - fields[siteIndex]));
 		}
 	}
 
@@ -49,44 +45,29 @@ double XYSquare::getSinSqrX() const
 			// No double counting
 			int i_r = lattice.neighbor(siteIndex, 0, +1);
 
-			result += sin(kPi * (site_fields[i_r] - site_fields[siteIndex]));
+			result += sin(kPi * (fields[i_r] - fields[siteIndex]));
 		}
 	}
 
 	return result * result;
 }
 
-double XYSquare::proposeSiteFlip(int index, double angle) const
+double XYSquare::proposeUpdate(int index, double delta) const
 {
 	std::vector<int> connectedSites = getSiteConnectedCluster(index).first;
 
 	double flip_energy = 0.0;
 	for (const int& csite : connectedSites) {
-		flip_energy += cos(kPi * (site_fields[index] + angle - site_fields[csite])) - cos(kPi * (site_fields[index] - site_fields[csite]));
+		flip_energy += cos(kPi * (fields[index] + delta - fields[csite])) - cos(kPi * (fields[index] - fields[csite]));
 	}
 
 	return -flip_energy;
 }
 
-double XYSquare::proposePlaqFlip(int index, double angle) const
-{
-	return 0.0;
-}
-
-void XYSquare::UpdateSite(int index, double angle)
-{
-	site_fields[index] += angle;
-}
-
-void XYSquare::UpdatePlaq(int index, double angle)
-{
-	plaq_fields[index] += angle;
-}
-
 std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < n_plaq_variables; n++)
+	for (int n = 0; n < numVariables(); n++)
 	{
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(n).first;
 
@@ -97,8 +78,8 @@ std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 			int site_2 = plaq_sites[(i + 1) % size];
 			int site_1 = plaq_sites[i];
 
-			double d2 = site_fields[site_2];
-			double d1 = site_fields[site_1];
+			double d2 = fields[site_2];
+			double d1 = fields[site_1];
 
 			vortex += mcf::mapToCircle(d2 - d1);
 		}
@@ -112,31 +93,51 @@ std::vector<std::pair<std::vector<int>, int>> XYSquare::getVortices() const
 	return vortices;
 }
 
-System::Observables XYSquare::Measure(double T) const
+std::vector<std::string> XYSquare::observableNames() const
 {
-	System::Observables observables;
-	observables.energy = getEnergy();
-	observables.flux_cos = 0.0;
-	observables.helicity_modulus = 
-		-observables.energy / (2.0 * (double)n_site_variables) - 
-		getSinSqrX() / (T * (double)n_site_variables);
-	observables.polyakov_loop = 0.0;
+	return { "Energy", "Helicity Modulus", "defects_a", "defects_b" };
+}
+
+std::vector<double> XYSquare::measure(double temperature) const
+{
+	const double energy = getEnergy();
+	const double helicity_modulus =
+		-energy / (2.0 * (double)numVariables()) -
+		getSinSqrX() / (temperature * (double)numVariables());
 
 	int n_a = 0;
 	int n_b = 0;
-	const auto monopoles = getVortices();
-	for (int n = 0; n < monopoles.size(); n++)
+	const auto vortices = getVortices();
+	for (int n = 0; n < vortices.size(); n++)
 	{
-		if (monopoles[n].second < 0)
+		if (vortices[n].second < 0)
 			n_b++;
-		else if (monopoles[n].second > 0)
+		else if (vortices[n].second > 0)
 			n_a++;
 	}
 
-	observables.n_defects_a = n_a;
-	observables.n_defects_b = n_b;
+	return { energy, helicity_modulus, (double)n_a, (double)n_b };
+}
 
-	return observables;
+std::vector<Channel> XYSquare::channels() const
+{
+	return { { "theta", ChannelKind::Angle }, { "vortices", ChannelKind::Integer } };
+}
+
+void XYSquare::fillChannel(int channel, std::vector<double>& out) const
+{
+	out.assign(lattice.size(), 0.0);
+
+	if (channel == 0)
+	{
+		for (int site = 0; site < lattice.size(); site++)
+			out[site] = fields[site];
+		return;
+	}
+
+	// One charge per plaquette, written to the site the plaquette is anchored at.
+	for (const auto& vortex : getVortices())
+		out[vortex.first[0]] = (double)vortex.second;
 }
 
 std::pair<std::vector<int>, std::vector<int>> XYSquare::getSiteConnectedCluster(int siteIndex) const

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <random>
 #include <assert.h>
 
 #include "MathUtil.h"
@@ -15,22 +16,19 @@ QXYSquare::QXYSquare(int size, int Ntau, unsigned int seed)
 
 QXYSquare::QXYSquare(int size, int Ntau, float K_s, float K_t, unsigned int seed)
 	:
+	System(mcf::PeriodicLattice({ size, size, Ntau }, { "x", "y", "tau" }), size * size * Ntau),
 	size(size),
 	Ntau(Ntau),
-	K_s(K_s),
-	K_t(K_t),
 	ss_size(size * size),
 	st_size(size * Ntau),
-	lattice({ size, size, Ntau }, { "x", "y", "tau" }),
-	System(size * size * Ntau, size * size * Ntau * 3)
+	nPlaqs(size * size * Ntau * 3),
+	K_s(K_s),
+	K_t(K_t)
 {
-	site_fields = std::vector<double>(n_site_variables);
-	plaq_fields = std::vector<double>(n_site_variables*3);
-
 	std::mt19937 rng(seed != 0 ? seed : std::random_device{}());
 	std::uniform_real_distribution<double> dst;
 
-	std::for_each(site_fields.begin(), site_fields.end(), [&rng, &dst](double& d) {d = dst(rng); });
+	std::for_each(fields.begin(), fields.end(), [&rng, &dst](double& d) {d = dst(rng); });
 }
 
 double QXYSquare::getEnergy() const
@@ -49,8 +47,8 @@ double QXYSquare::getEnergy() const
 				int i_u = lattice.neighbor(siteIndex, 1, +1);
 				int i_t = lattice.neighbor(siteIndex, 2, +1);
 
-				energy += -K_s * (cos(kPi * (site_fields[i_r] - site_fields[siteIndex])) + cos(kPi * (site_fields[i_u] - site_fields[siteIndex])));
-				energy += -K_t * (cos(kPi * (site_fields[i_t] - site_fields[siteIndex])));
+				energy += -K_s * (cos(kPi * (fields[i_r] - fields[siteIndex])) + cos(kPi * (fields[i_u] - fields[siteIndex])));
+				energy += -K_t * (cos(kPi * (fields[i_t] - fields[siteIndex])));
 			}
 		}
 	}
@@ -58,44 +56,29 @@ double QXYSquare::getEnergy() const
 	return energy;
 }
 
-double QXYSquare::proposeSiteFlip(int index, double angle) const
+double QXYSquare::proposeUpdate(int index, double delta) const
 {
 	std::pair<std::vector<int>, std::vector<int>> connectedSites = getSiteConnectedCluster(index);
 
 	double flip_energy = 0.0;
 	for (const int& csite : connectedSites.first)
 	{
-		flip_energy += -K_s * (cos(kPi * (site_fields[index] + angle - site_fields[csite])) - cos(kPi * (site_fields[index] - site_fields[csite])));
+		flip_energy += -K_s * (cos(kPi * (fields[index] + delta - fields[csite])) - cos(kPi * (fields[index] - fields[csite])));
 	}
 	for (const int& tsite : connectedSites.second)
 	{
-		double dTheta = site_fields[index] - site_fields[tsite];
-		double dTheta_f = dTheta + angle;
+		double dTheta = fields[index] - fields[tsite];
+		double dTheta_f = dTheta + delta;
 		flip_energy += -K_t * (cos(kPi * dTheta_f) - cos(kPi * dTheta));
 	}
 
 	return flip_energy;
 }
 
-double QXYSquare::proposePlaqFlip(int index, double angle) const
-{
-	return 0.0;
-}
-
-void QXYSquare::UpdateSite(int index, double angle)
-{
-	site_fields[index] += angle;
-}
-
-void QXYSquare::UpdatePlaq(int index, double angle)
-{
-	plaq_fields[index] += angle;
-}
-
 std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < n_plaq_variables; n += 3)
+	for (int n = 0; n < nPlaqs; n += 3)
 	{
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(n).first;
 
@@ -106,8 +89,8 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() co
 			int site_2 = plaq_sites[(i + 1) % size];
 			int site_1 = plaq_sites[i];
 
-			double d2 = site_fields[site_2];
-			double d1 = site_fields[site_1];
+			double d2 = fields[site_2];
+			double d1 = fields[site_1];
 
 			vortex += mcf::mapToCircle(d2 - d1);
 		}
@@ -124,7 +107,7 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getSpacialVortices() co
 std::vector<std::pair<std::vector<int>, int>> QXYSquare::getTemporalVortices() const
 {
 	std::vector<std::pair<std::vector<int>, int>> vortices;
-	for (int n = 0; n < 2*n_plaq_variables/3; n++)
+	for (int n = 0; n < 2*nPlaqs/3; n++)
 	{
 		int plaq_index = n + (n - 1) / 2; // this ignores spacial plaquettes
 		std::vector<int> plaq_sites = getPlaqConnectedCluster(plaq_index).first;
@@ -136,8 +119,8 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getTemporalVortices() c
 			int site_2 = plaq_sites[(i + 1) % size];
 			int site_1 = plaq_sites[i];
 
-			double d2 = site_fields[site_2];
-			double d1 = site_fields[site_1];
+			double d2 = fields[site_2];
+			double d1 = fields[site_1];
 
 			vortex += mcf::mapToCircle(d2 - d1);
 		}
@@ -151,11 +134,26 @@ std::vector<std::pair<std::vector<int>, int>> QXYSquare::getTemporalVortices() c
 	return vortices;
 }
 
-void QXYSquare::LogToFile(std::ofstream& outfile) const
+std::vector<std::string> QXYSquare::observableNames() const
 {
-	const auto vortexPairs_s = getSpacialVortices();
-	const auto vortexPairs_t = getTemporalVortices();
-	outfile << "(" << vortexPairs_s.size() << "," << vortexPairs_t.size() << ")";
+	return { "Energy" };
+}
+
+std::vector<double> QXYSquare::measure(double temperature) const
+{
+	return { getEnergy() };
+}
+
+std::vector<Channel> QXYSquare::channels() const
+{
+	return { { "theta", ChannelKind::Angle } };
+}
+
+void QXYSquare::fillChannel(int channel, std::vector<double>& out) const
+{
+	out.assign(lattice.size(), 0.0);
+	for (int site = 0; site < lattice.size(); site++)
+		out[site] = fields[site];
 }
 
 std::pair<std::vector<int>, std::vector<int>> QXYSquare::getSiteConnectedCluster(int siteIndex) const

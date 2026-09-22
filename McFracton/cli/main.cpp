@@ -72,13 +72,11 @@ std::string RunCase(RegressionCase& c)
 				machine.Overrelax(params.updates_per_overrelaxation);
 		}
 
-		const System::Observables o = c.system->Measure(temperature);
-		out << c.name << "\tT=" << temperature << "\tenergy\t" << o.energy << '\n';
-		out << c.name << "\tT=" << temperature << "\thelicity_modulus\t" << o.helicity_modulus << '\n';
-		out << c.name << "\tT=" << temperature << "\tpolyakov_loop\t" << o.polyakov_loop << '\n';
-		out << c.name << "\tT=" << temperature << "\tflux_cos\t" << o.flux_cos << '\n';
-		out << c.name << "\tT=" << temperature << "\tn_defects_a\t" << o.n_defects_a << '\n';
-		out << c.name << "\tT=" << temperature << "\tn_defects_b\t" << o.n_defects_b << '\n';
+		// Name-driven, so a system that adds or drops an observable shows up here on its own.
+		const std::vector<std::string> names = c.system->observableNames();
+		const std::vector<double> values = c.system->measure(temperature);
+		for (size_t i = 0; i < names.size(); i++)
+			out << c.name << "\tT=" << temperature << '\t' << names[i] << '\t' << values[i] << '\n';
 	}
 
 	return out.str();

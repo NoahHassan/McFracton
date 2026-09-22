@@ -13,23 +13,19 @@ using mcf::kPi;
 
 Spiderweb::Spiderweb(int linear_size, int temporal_size, double KU, unsigned int seed)
 	:
+	System(mcf::PeriodicLattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
+		linear_size * linear_size * temporal_size * 3),
 	linear_size(linear_size),
 	spatial_size(linear_size * linear_size),
 	temporal_size(temporal_size),
-	KU(KU),
-	lattice({ linear_size, linear_size, temporal_size }, { "x", "y", "t" }),
 	nSites(linear_size * linear_size * temporal_size),
-	nPlaqs(0),
-	System(linear_size * linear_size * temporal_size * 3, 0)
+	KU(KU)
 {
-	site_fields = std::vector<double>(n_site_variables);
-	plaq_fields = std::vector<double>(n_plaq_variables);
-
 	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
 	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
-	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
+	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = overrelax_dst(rng); });
 }
 
 double Spiderweb::getEnergy() const
@@ -62,7 +58,7 @@ double Spiderweb::accumulateLocalEnergies(std::vector<double>& localEnergies) co
 	double energy = 0.0;
 	for (int n_site = 0; n_site < nSites; n_site++)
 	{
-		// (field_index, factor) pairs, such that factor * site_fields[field_index] is a term
+		// (field_index, factor) pairs, such that factor * fields[field_index] is a term
 		// in the cosine of the hamiltonian
 		auto e_terms_xx = getElectricTerms_xx(n_site * 3);
 		auto e_terms_xy = getElectricTerms_xy(n_site * 3);
@@ -71,18 +67,18 @@ double Spiderweb::accumulateLocalEnergies(std::vector<double>& localEnergies) co
 		double e_sum_xx = 0.0;
 		for (auto term : e_terms_xx)
 		{
-			e_sum_xx += term.second * site_fields[term.first];
+			e_sum_xx += term.second * fields[term.first];
 		}
 		double e_sum_xy = 0.0;
 		for (auto term : e_terms_xy)
 		{
-			e_sum_xy += term.second * site_fields[term.first];
+			e_sum_xy += term.second * fields[term.first];
 		}
 
 		double b_sum = 0.0;
 		for (auto term : b_terms)
 		{
-			b_sum += term.second * site_fields[term.first];
+			b_sum += term.second * fields[term.first];
 		}
 
 		double b_val = cos(kPi * b_sum) / 2.0;
@@ -95,7 +91,7 @@ double Spiderweb::accumulateLocalEnergies(std::vector<double>& localEnergies) co
 	return energy;
 }
 
-double Spiderweb::proposeSiteFlip(int index, double angle) const
+double Spiderweb::proposeUpdate(int index, double delta) const
 {
 	double d_energy = 0.0;
 	int type = index % 3;
@@ -117,10 +113,10 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 			double old_sum = 0.0, new_sum = 0.0;
 			for (auto term : terms)
 			{
-				old_sum += term.second * site_fields[term.first];
-				new_sum += term.second * site_fields[term.first];
+				old_sum += term.second * fields[term.first];
+				new_sum += term.second * fields[term.first];
 				if (term.first == index)
-					new_sum += term.second * angle;
+					new_sum += term.second * delta;
 			}
 			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
@@ -130,10 +126,10 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 			double old_sum = 0.0, new_sum = 0.0;
 			for (auto term : terms)
 			{
-				old_sum += term.second * site_fields[term.first];
-				new_sum += term.second * site_fields[term.first];
+				old_sum += term.second * fields[term.first];
+				new_sum += term.second * fields[term.first];
 				if (term.first == index)
-					new_sum += term.second * angle;
+					new_sum += term.second * delta;
 			}
 			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
@@ -143,10 +139,10 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 			double old_sum = 0.0, new_sum = 0.0;
 			for (auto term : terms)
 			{
-				old_sum += term.second * site_fields[term.first];
-				new_sum += term.second * site_fields[term.first];
+				old_sum += term.second * fields[term.first];
+				new_sum += term.second * fields[term.first];
 				if (term.first == index)
-					new_sum += term.second * angle;
+					new_sum += term.second * delta;
 			}
 			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
 		};
@@ -190,40 +186,39 @@ double Spiderweb::proposeSiteFlip(int index, double angle) const
 	return d_energy;
 }
 
-double Spiderweb::proposePlaqFlip(int index, double angle) const
+std::vector<std::string> Spiderweb::observableNames() const
 {
-	return 0.0;
+	return { "Energy" };
 }
 
-void Spiderweb::UpdateSite(int index, double angle)
+std::vector<double> Spiderweb::measure(double temperature) const
 {
-	site_fields[index] += angle;
+	return { getEnergy() };
 }
 
-void Spiderweb::UpdatePlaq(int index, double angle)
+std::vector<Channel> Spiderweb::channels() const
 {
-	plaq_fields[index] += angle;
+	return { { "A_0", ChannelKind::Angle },
+			 { "A_xx", ChannelKind::Angle },
+			 { "A_xy", ChannelKind::Angle },
+			 { "local energy", ChannelKind::Magnitude } };
 }
 
-//void Spiderweb::OverrelaxSite(int index)
-//{
-//	// Do a gauge transformation A_ij --> Q_ij f with weird Q_ij
-//}
-
-System::Observables Spiderweb::Measure(double T) const
+void Spiderweb::fillChannel(int channel, std::vector<double>& out) const
 {
-	System::Observables observables;
-	observables.energy = getEnergy();
-	observables.helicity_modulus = 0.0;
-	observables.n_defects_a = 0;
-	observables.n_defects_b = 0;
-	observables.polyakov_loop = 0.0;
+	if (channel == 3)
+	{
+		out = getLocalEnergies();
+		return;
+	}
 
-	return observables;
+	out.assign(lattice.size(), 0.0);
+	for (int site = 0; site < lattice.size(); site++)
+		out[site] = get_field(site, channel);
 }
 
 /// <summary>
-/// Returns vector of (field_index, factor) pairs, such that factor * site_fields[field_index] is the
+/// Returns vector of (field_index, factor) pairs, such that factor * fields[field_index] is the
 /// corresponding term in the term 1/2(KU) cos(Q_xx A_0 - D0 A_xx)
 /// </summary>
 /// <param name="site_index"></param>
@@ -325,7 +320,7 @@ int Spiderweb::field_index_from_site(int site_index, int type) const
 
 double Spiderweb::get_field(int site_index, int type) const
 {
-	return site_fields[site_index * 3 + type];
+	return fields[site_index * 3 + type];
 }
 
 double Spiderweb::get_field(int nx, int ny, int nt, int type) const

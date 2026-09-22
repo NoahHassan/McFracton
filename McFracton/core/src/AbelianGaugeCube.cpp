@@ -10,21 +10,20 @@ using mcf::kPi;
 
 AbelianGaugeCube::AbelianGaugeCube(int linear_size, int temporal_size, unsigned int seed)
 	:
+	// A_x, A_y, A_z, A_t on each site
+	System(mcf::PeriodicLattice({ linear_size, linear_size, linear_size, temporal_size },
+			{ "x", "y", "z", "t" }),
+		linear_size * linear_size * linear_size * temporal_size * 4),
 	linear_size(linear_size),
 	temporal_size(temporal_size),
-	lattice({ linear_size, linear_size, linear_size, temporal_size }, { "x", "y", "z", "t" }),
 	nSites(linear_size * linear_size * linear_size * temporal_size),
-	nPlaqs(linear_size * linear_size * linear_size * temporal_size * 6), // xy xz xt yz yt zt
-	System(linear_size * linear_size * linear_size * temporal_size * 4, 0) // A_x, A_y, A_z, A_t on each site
+	nPlaqs(linear_size * linear_size * linear_size * temporal_size * 6) // xy xz xt yz yt zt
 {
-	site_fields = std::vector<double>(n_site_variables);
-	plaq_fields = std::vector<double>(n_site_variables * 3);
-
 	// seed == 0 means "pick a fresh, unpredictable seed"; any other value is reproducible.
 	rng = std::mt19937(seed != 0 ? seed : std::random_device{}());
 	overrelax_dst = std::uniform_real_distribution<double>(-1.0, 1.0);
 
-	std::for_each(site_fields.begin(), site_fields.end(), [&](double& d) { d = overrelax_dst(rng); });
+	std::for_each(fields.begin(), fields.end(), [&](double& d) { d = overrelax_dst(rng); });
 }
 
 double AbelianGaugeCube::getEnergy() const
@@ -40,7 +39,7 @@ double AbelianGaugeCube::getEnergy() const
 	return -energy;
 }
 
-double AbelianGaugeCube::proposeSiteFlip(int index, double angle) const
+double AbelianGaugeCube::proposeUpdate(int index, double delta) const
 {
 	int site_index = index / 4;
 	int type = index % 4;
@@ -50,49 +49,34 @@ double AbelianGaugeCube::proposeSiteFlip(int index, double angle) const
 	int ny = lattice.coord(site_index, 1);
 	int nx = lattice.coord(site_index, 0);
 
-	double current = site_fields[index];
+	double current = fields[index];
 
 	switch (type)
 	{
 	case 0:
 	{
-		return getLocalEnergy_x(nx, ny, nz, nt, current + angle) - getLocalEnergy_x(nx, ny, nz, nt, current);
+		return getLocalEnergy_x(nx, ny, nz, nt, current + delta) - getLocalEnergy_x(nx, ny, nz, nt, current);
 		break;
 	}
 	case 1:
 	{
-		return getLocalEnergy_y(nx, ny, nz, nt, current + angle) - getLocalEnergy_y(nx, ny, nz, nt, current);
+		return getLocalEnergy_y(nx, ny, nz, nt, current + delta) - getLocalEnergy_y(nx, ny, nz, nt, current);
 		break;
 	}
 	case 2:
 	{
-		return getLocalEnergy_z(nx, ny, nz, nt, current + angle) - getLocalEnergy_z(nx, ny, nz, nt, current);
+		return getLocalEnergy_z(nx, ny, nz, nt, current + delta) - getLocalEnergy_z(nx, ny, nz, nt, current);
 		break;
 	}
 	case 3:
-		return getLocalEnergy_t(nx, ny, nz, nt, current + angle) - getLocalEnergy_t(nx, ny, nz, nt, current);
+		return getLocalEnergy_t(nx, ny, nz, nt, current + delta) - getLocalEnergy_t(nx, ny, nz, nt, current);
 		break;
 	default:
 		throw std::logic_error("AbelianGaugeCube: link direction must be 0, 1, 2 or 3");
 	}
 }
 
-double AbelianGaugeCube::proposePlaqFlip(int index, double angle) const
-{
-	return plaq_fields[index];
-}
-
-void AbelianGaugeCube::UpdateSite(int index, double angle)
-{
-	site_fields[index] += angle;
-}
-
-void AbelianGaugeCube::UpdatePlaq(int index, double angle)
-{
-	plaq_fields[index] += angle;
-}
-
-void AbelianGaugeCube::OverrelaxSite(int index)
+void AbelianGaugeCube::overrelax(int index)
 {
 	int site_index = index / 4;
 
@@ -103,19 +87,19 @@ void AbelianGaugeCube::OverrelaxSite(int index)
 
 	double random_shift = overrelax_dst(rng);
 	// A_i(r) --> A_i(r) + f(r + i) - f(r) = A_i(r) - f(r)
-	site_fields[to_site_index(nx, ny, nz, nt) * 4 + 0] += -random_shift;
-	site_fields[to_site_index(nx, ny, nz, nt) * 4 + 1] += -random_shift;
-	site_fields[to_site_index(nx, ny, nz, nt) * 4 + 2] += -random_shift;
-	site_fields[to_site_index(nx, ny, nz, nt) * 4 + 3] += -random_shift;
+	fields[to_site_index(nx, ny, nz, nt) * 4 + 0] += -random_shift;
+	fields[to_site_index(nx, ny, nz, nt) * 4 + 1] += -random_shift;
+	fields[to_site_index(nx, ny, nz, nt) * 4 + 2] += -random_shift;
+	fields[to_site_index(nx, ny, nz, nt) * 4 + 3] += -random_shift;
 
 	// A_x-1(r) --> A_x-1(r) + f(r) - f(r-x) = A_x-1(r) + f(r)
-	site_fields[to_site_index(lattice.wrap(0, nx - 1), ny, nz, nt) * 4 + 0] += random_shift;
+	fields[to_site_index(lattice.wrap(0, nx - 1), ny, nz, nt) * 4 + 0] += random_shift;
 	// A_y-1(r) --> A_y-1(r) + f(r) - f(r-y) = A_y-1(r) + f(r)
-	site_fields[to_site_index(nx, lattice.wrap(1, ny - 1), nz, nt) * 4 + 1] += random_shift;
+	fields[to_site_index(nx, lattice.wrap(1, ny - 1), nz, nt) * 4 + 1] += random_shift;
 	// A_z-1(r) --> A_z-1(r) + f(r) - f(r-z) = A_z-1(r) + f(r)
-	site_fields[to_site_index(nx, ny, lattice.wrap(2, nz - 1), nt) * 4 + 2] += random_shift;
+	fields[to_site_index(nx, ny, lattice.wrap(2, nz - 1), nt) * 4 + 2] += random_shift;
 	// A_t-1(r) --> A_t-1(r) + f(r) - f(r-t) = A_t-1(r) + f(r)
-	site_fields[to_site_index(nx, ny, nz, lattice.wrap(3, nt - 1)) * 4 + 3] += random_shift;
+	fields[to_site_index(nx, ny, nz, lattice.wrap(3, nt - 1)) * 4 + 3] += random_shift;
 }
 
 std::vector<double> AbelianGaugeCube::getFluxes_z() const
@@ -146,15 +130,15 @@ std::vector<double> AbelianGaugeCube::getFluxes_z() const
 	return fluxes;
 }
 
-System::Observables AbelianGaugeCube::Measure(double T) const
+std::vector<std::string> AbelianGaugeCube::observableNames() const
 {
-	System::Observables observables;
-	observables.energy = getEnergy();
-	observables.helicity_modulus = 0.0;
+	// Monopole counting was removed with getMonopoles(), so the 3+1D defect density is not reported.
+	return { "Energy", "Polyakov Loop" };
+}
 
-	// Monopole counting was removed with getMonopoles(); the 3+1D defect density is not measured.
-	observables.n_defects_a = 0;
-	observables.n_defects_b = 0;
+std::vector<double> AbelianGaugeCube::measure(double temperature) const
+{
+	const double energy = getEnergy();
 
 	int plane_size = linear_size * linear_size;
 	int cube_size = plane_size * linear_size;
@@ -174,10 +158,30 @@ System::Observables AbelianGaugeCube::Measure(double T) const
 	std::for_each(loops.begin(), loops.end(), [&polyakov_loop_mean](double& d) {polyakov_loop_mean += d; });
 	polyakov_loop_mean /= (double)cube_size;
 
-	observables.polyakov_loop = polyakov_loop_mean;
+	return { energy, polyakov_loop_mean };
+}
 
-	return observables;
-};
+std::vector<Channel> AbelianGaugeCube::channels() const
+{
+	return { { "A_x", ChannelKind::Angle },
+			 { "A_y", ChannelKind::Angle },
+			 { "A_z", ChannelKind::Angle },
+			 { "A_t", ChannelKind::Angle },
+			 { "flux_xy", ChannelKind::Signed } };
+}
+
+void AbelianGaugeCube::fillChannel(int channel, std::vector<double>& out) const
+{
+	if (channel == 4)
+	{
+		out = getFluxes_z();
+		return;
+	}
+
+	out.assign(lattice.size(), 0.0);
+	for (int site = 0; site < lattice.size(); site++)
+		out[site] = get_field(site, channel);
+}
 
 double AbelianGaugeCube::getLocalEnergy_x(int nx, int ny, int nz, int nt, double angle) const
 {
@@ -407,7 +411,7 @@ double AbelianGaugeCube::get_field(int site_index, int direction) const
 	assert(0 <= direction && direction <= 4);
 	assert(site_index <= nSites);
 
-	return site_fields[site_index * 4 + direction];
+	return fields[site_index * 4 + direction];
 }
 
 double AbelianGaugeCube::get_field(int nx, int ny, int nz, int nt, int direction) const

@@ -1,24 +1,25 @@
 #pragma once
 
 #include <algorithm>
+#include <random>
 
 #include "Lattice.h"
 #include "System.h"
 
+// Axes: x, y, z, t. A_x, A_y, A_z, A_t on every site, so the variable index is site * 4 + direction.
 class AbelianGaugeCube : public System {
 public:
 	AbelianGaugeCube(int linear_size, int temporal_size, unsigned int seed = 0);
 	~AbelianGaugeCube() override = default;
 public:
-	double getEnergy() const;
-	std::vector<double> getLocalEnergies() const { return {}; };
-	double proposeSiteFlip(int index, double angle) const;
-	double proposePlaqFlip(int index, double angle) const;
-	void UpdateSite(int index, double angle);
-	void UpdatePlaq(int index, double angle);
-	virtual void OverrelaxSite(int index) override;
+	double getEnergy() const override;
+	double proposeUpdate(int index, double delta) const override;
+	void overrelax(int index) override;
 	std::vector<double> getFluxes_z() const;
-	Observables Measure(double T) const;
+	std::vector<std::string> observableNames() const override;
+	std::vector<double> measure(double temperature) const override;
+	std::vector<Channel> channels() const override;
+	void fillChannel(int channel, std::vector<double>& out) const override;
 public:
 	const int linear_size;
 	const int temporal_size;
@@ -37,8 +38,6 @@ private:
 	double get_field(int site_index, int direction) const;
 	double get_field(int nx, int ny, int nz, int nt, int direction) const;
 private:
-	// Axes: x, y, z, t
-	mcf::PeriodicLattice lattice;
 	std::mt19937 rng;
 	std::uniform_real_distribution<double> overrelax_dst;
 };

@@ -4,16 +4,16 @@
 
 System::~System() {}
 
-double System::getSite(int index) const
+double System::variable(int index) const
 {
     assert(0 <= index);
-    assert(index < site_fields.size());
-    return site_fields[index];
+    assert(index < fields.size());
+    return fields[index];
 }
 
-double System::getPlaq(int index) const
+void System::applyUpdate(int index, double delta)
 {
     assert(0 <= index);
-    assert(index < plaq_fields.size());
-    return plaq_fields[index];
+    assert(index < fields.size());
+    fields[index] += delta;
 }

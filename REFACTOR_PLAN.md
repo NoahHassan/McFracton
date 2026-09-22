@@ -202,6 +202,28 @@ Each phase ends with a build, the regression check, and a checkpoint where I ask
   stays the first non-comment line, so parsers reading with `comment='#'` keep working.
 - Regression: bit-identical, except the defect mean/variance columns, which are now doubles, as agreed.
 
+**As built (deviations from the sketch above, all agreed after Phase 1 landed):**
+- `LatticeInfo` and the virtual `lattice()` are **not** used. Phase 1's `mcf::PeriodicLattice` already
+  carries extents and axis names, so a second struct would have duplicated it: `System` now *holds* the
+  lattice as a protected member, hands it out through a non-virtual `getLattice()`, and its constructor
+  takes `(PeriodicLattice, n_variables)` and sizes `fields` itself. That also removed the `lattice`
+  member and the `fields` allocation from all five systems.
+- Error columns are named `D` + the observable name (`DEnergy`, `DHelicity Modulus`), since the old
+  hand-written abbreviations (`DE`, `DHM`, `Dna`) cannot be derived from a name. The value columns keep
+  the old spellings exactly, which is what analysis scripts key on.
+- The `#` provenance lines carry the resolved seed (so a `seed = 0` run records the seed it actually
+  drew), the `NumericalParams` and the variable count. **The git hash is deferred to Phase 4**, where
+  the CLI can pass it in; embedding it now would have needed a generated header in both build systems.
+- `getLocalEnergies()` left the base interface but stays a `Spiderweb` method, as the source of its
+  "local energy" channel.
+- Golden files were **re-labelled, not re-measured**: the new files were derived from the Phase 1 files
+  by renaming the labels and dropping the columns each system no longer reports, and the live build then
+  reproduced them bit-identically. Every dropped column (`flux_cos` everywhere, and the per-system
+  always-zero `helicity_modulus` / `polyakov_loop` / `n_defects_*`) was exactly `0` in the baseline, so
+  no measured number changed.
+- `QXYSquare` keeps a `nPlaqs` member of its own, because its vortex loops used the base class's
+  `n_plaq_variables` as their bound.
+
 ### Phase 3: RNG ownership (the one step with a re-baseline)
 - Systems stop owning RNGs. `McMachine` owns one seeded `std::mt19937` and passes it to `system.randomize(rng)`
   and `system.overrelax(i, rng)`, which makes a run reproducible from a single seed.
@@ -249,11 +271,13 @@ raised to ±2; the Cube's `getMonopoles` deleted as unphysical and its Polyakov 
 `OverrelaxSite` commented out; `current_measurement_sweeps` now clamped by `max_measure_sweeps`.
 The `+`/`−` signs in the Spiderweb Hamiltonian are intended, and gauge "overrelaxation" keeps its name.
 
+**Helicity modulus — no missing `π` (checked 2026-09-22).** With `φ = πθ` the physical angle, the energy is
+`-Σ cos(Δφ)` and `getSinSqrX` is `(Σ_x sin Δφ)²`, so `Γ = -E/(2N) - ⟨(Σ sin)²⟩/(T N)` is exactly the standard
+`Υ = ⟨Σ_x cos Δφ⟩/N - ⟨(Σ_x sin Δφ)²⟩/(T N)` (the `/2` averages the x and y bond sums, each over N bonds).
+The twist that defines Υ is a phase on the spin, `φ → φ + δ`, not a shift of `θ`, so the derivative brings down no
+`π` and both terms share one normalisation. The earlier entry in this appendix was wrong and has been removed.
+
 ### Still open, for you (I will not touch these)
-1. **`XYSquare::getSinSqrX` (line 60) still uses `sin(2.0 * PI · Δθ)`** while the energy is now `cos(PI · Δθ)`.
-   The helicity modulus is the twist derivative of the energy, so its `sin` should carry the same argument as the
-   `cos` it comes from, and the `π` prefactors in the formula change with the convention. This is the last
-   `2.0 * PI` left in the core.
 2. QXYSquare is out of scope, and its `Measure` still throws. It is excluded from the regression tests and is left
    untouched; say the word if you'd rather delete it.
 
