@@ -26,6 +26,11 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 	logfile_name = filename;
 }
 
+void McMachine::addProvenance(std::string key, std::string value)
+{
+	provenance.emplace_back(std::move(key), std::move(value));
+}
+
 void McMachine::Sweep(int nUpdates, const double temperature, bool adapt_step)
 {
 	if (adapt_step)
@@ -62,6 +67,8 @@ void McMachine::StartSimulation()
 {
 	logfile = std::ofstream(logfile_name);
 	assert(logfile.is_open());
+	for (const auto& entry : provenance)
+		logfile << "# " << entry.first << '\t' << entry.second << '\n';
 	logfile << "# seed\t" << seed << '\n';
 	logfile << "# t_max\t" << params.t_max << "\tt_min\t" << params.t_min
 		<< "\tt_fac\t" << params.t_fac << '\n';

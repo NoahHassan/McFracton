@@ -4,6 +4,7 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "System.h"
@@ -34,6 +35,9 @@ public:
 	// system's initial configuration from it, so a single seed reproduces the whole run.
 	McMachine(NumericalParams params, System& system, std::string filename = "log.txt", unsigned int seed = 0);
 public:
+	// Extra '#' provenance lines, written above the parameter lines in that order. McMachine cannot
+	// know the system name, the constructor parameters or the git hash, so the caller supplies them.
+	void addProvenance(std::string key, std::string value);
 	void Sweep(int nUpdates, const double temperature, bool adapt_step = true);
 	void Overrelax(int nUpdates);
 	void StartSimulation();
@@ -50,6 +54,7 @@ private:
 	std::uniform_real_distribution<double> eps_dst;
 	std::uniform_real_distribution<double> acc_dst;
 	System& system;
+	std::vector<std::pair<std::string, std::string>> provenance;
 	std::string logfile_name;
 	std::ofstream logfile;
 	double acceptance_ratio;

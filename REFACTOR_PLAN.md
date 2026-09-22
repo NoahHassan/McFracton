@@ -57,6 +57,7 @@ McFracton/                      (repo root)
 ├─ CLAUDE.md                    rules + build/test commands
 ├─ REFACTOR_PLAN.md             copy of this plan
 ├─ scripts/slurm_array.sh       example array job
+├─ config/spiderweb.cfg         example run configuration
 └─ McFracton/
    ├─ McFracton.vcxproj         KEPT — the GUI app, as today
    ├─ McFractonRun.vcxproj      NEW — the headless CLI, same solution
@@ -253,6 +254,32 @@ Each phase ends with a build, the regression check, and a checkpoint where I ask
   couplings, `NumericalParams`, `seed` and `out`. Config parsing lives in `cli/main.cpp`, with no new dependency.
 - `scripts/slurm_array.sh` as an example, and a Linux build check if you can run
   `cmake --preset linux-release && cmake --build --preset linux-release` on the cluster (I can't reach it).
+
+**As built:**
+- `SystemRegistry.h` is header-only: one `SystemEntry` per system, holding its name, its constructor
+  parameters (name, default, integer-or-not) and a factory taking the values as doubles. `findSystem`
+  looks one up by name. Adding a system is one entry here, and neither the CLI nor the GUI changes.
+- The CLI names no system class any more: even the regression and stats cases are built through the
+  registry, with their sizes spelled out so the report cannot move when a registry default does. The
+  regression stayed bit-identical across that change.
+- Settings are a flat key=value list: the config file first, `--key=value` overrides appended after,
+  last one wins. Keys are `system`, that system's parameters, every `NumericalParams` field, and
+  `seed` / `out` / `git_hash`. An unrecognised key is an **error**, not a silent no-op, because a typo
+  in a config would otherwise waste a whole array job.
+- `mcf_run --list` prints the registered systems and their parameters, which is also what the error
+  messages point at.
+- `McMachine::addProvenance(key, value)` adds `#` lines above the existing ones. The CLI uses it for
+  the system name, each constructor parameter and the git hash. **The hash is passed in, not compiled
+  in** (`--git_hash=$(git rev-parse --short HEAD)`, as `scripts/slurm_array.sh` does), which is what
+  lets Phase 2's deferral resolve without a generated header in either build system.
+- `scripts/slurm_array.sh` varies one setting per array task and writes one log per task;
+  `config/spiderweb.cfg` is the example config it reads.
+- Verified: both builds; regression bit-identical from both; a smoke run of **all five** systems
+  producing well-formed TSVs, QXYSquare included.
+- **Not verified: the Linux build.** There is no GCC on this machine and I cannot reach the cluster,
+  so `cmake --preset linux-release && cmake --build --preset linux-release` is still yours to run.
+  I kept to portable C++20 and added the includes MSVC supplies implicitly, but that is an argument,
+  not a test.
 
 ### Phase 5: Generic GUI
 - `LatticeView`, `ColorMaps.h`, registry-driven `Main.cpp`. Delete `Canvas.h`, `HyperCanvas.h`, `SpiderCanvas.h`,

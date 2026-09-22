@@ -105,6 +105,7 @@
     <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\Spiderweb.h" />
     <ClInclude Include="core\include\System.h" />
+    <ClInclude Include="core\include\SystemRegistry.h" />
     <ClInclude Include="core\include\Timer.h" />
     <ClInclude Include="core\include\XYSquare.h" />
   </ItemGroup>

@@ -39,6 +39,19 @@ CMAKE="/c/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonE
 ```
 Output: `build/`. Sources are globbed, so new files need no CMake edit.
 
+## Running
+A run is configured by key=value settings: a config file, `--key=value` overrides, or both, with the
+command line winning. `mcf_run --list` prints the registered systems and the parameters each takes.
+```sh
+build/windows-release/mcf_run --config config/spiderweb.cfg --KU=0.7 --seed=11
+```
+Keys are `system`, that system's parameters, every `NumericalParams` field, and `seed` / `out` /
+`git_hash`. An unknown key is an error rather than a silent no-op. Output defaults to
+`results/<System>.txt`, which is gitignored. `scripts/slurm_array.sh` is the cluster example; it
+passes the git hash in with `--git_hash=$(git rev-parse --short HEAD)`, which is why nothing has to
+be compiled in. A new system reaches both the CLI and the GUI by being added to
+`core/include/SystemRegistry.h` and nowhere else.
+
 ## Verification
 Both builds must pass at every checkpoint. The regression test compares against the golden files:
 ```sh
