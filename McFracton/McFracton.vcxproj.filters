@@ -21,10 +21,10 @@
     <ClCompile Include="core\src\McMachine.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="core\src\XYSquare.cpp">
+    <ClCompile Include="gui\LatticeView.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="gui\Shape.cpp">
+    <ClCompile Include="core\src\XYSquare.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="core\src\System.cpp">
@@ -59,22 +59,13 @@
     <ClInclude Include="core\include\SystemRegistry.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="gui\ColorMaps.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\LatticeView.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
     <ClInclude Include="core\include\XYSquare.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="core\include\Timer.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\Canvas.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\Shape.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="core\include\Vec2D.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\Square.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="core\include\BufferedArray.h">
@@ -89,13 +80,10 @@
     <ClInclude Include="core\include\AbelianGaugeCube.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="gui\HyperCanvas.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="core\include\Spiderweb.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="gui\SpiderCanvas.h">
+    <ClInclude Include="core\include\SpiderwebInstantons.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

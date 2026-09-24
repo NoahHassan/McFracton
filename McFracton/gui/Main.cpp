@@ -1,58 +1,63 @@
+// mcf_gui - watch a simulation run.
+//
+// The window is driven entirely by the registry: pick a system, set its parameters, press Rebuild.
+// Nothing here names a system class, so a system added to core/include/SystemRegistry.h shows up in
+// the picker on its own, and LatticeView draws whatever channels it declares.
+//
+// Annealing runs belong to mcf_run; this is for looking at a system at one temperature.
+
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "Canvas.h"
-#include "HyperCanvas.h"
-#include "SpiderCanvas.h"
-#include "XYSquare.h"
-#include "QXYSquare.h"
-#include "AbelianGaugeSquare.h"
-#include "AbelianGaugeCube.h"
-#include "Spiderweb.h"
-#include "Timer.h"
+#include "BufferedArray.h"
+#include "LatticeView.h"
 #include "McMachine.h"
+#include "System.h"
+#include "SystemRegistry.h"
 
-int main() {
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
-	using namespace sf;
+int main()
+{
+	// Without this, Windows hands a scaled display (150% here) a coordinate space smaller than the
+	// screen while SFML still reports the screen's true size, so a window sized from the latter
+	// overflows by exactly the scale factor and the right of the lattice falls off the edge.
+	// Being DPI aware makes the two agree, and renders at native resolution rather than upscaling.
+#ifdef _WIN32
+	SetProcessDPIAware();
+#endif
 
-	double maxEnergy = 0.01;
+	const std::vector<mcf::SystemEntry>& registry = mcf::systemRegistry();
 
-	const int space_layers = 16;
-	const int tau_layers = 16;
-	Spiderweb spiderweb(space_layers, tau_layers, 0.5);
+	int selected = 0;
+	std::vector<double> parameters;
+	for (const mcf::Parameter& p : registry[selected].parameters)
+		parameters.push_back(p.default_value);
+
 	McMachine::NumericalParams params;
-	params.t_max = 100.0;
-	params.t_min = 0.01;
-	params.max_therm_sweeps = 2000;
-	params.n_measurements = 10;
-	params.max_measure_sweeps = 500;
-	params.overrelax = false;
-	params.updates_per_overrelaxation = 1000;
-	McMachine machine(params, spiderweb, "spiderweb_L=16_KU=05.txt");
 
-	std::ofstream energy_out("spiderweb_L=6_KU=05_shockfreeze.txt");
-	{
-		std::cout << "Bibabutzemann\n";
-		machine.Sweep(100000, 100.0);
-		for (int n = 0; n < 10000; n++)
-		{
-			std::cout << "n = " << n << std::endl;
-			if (n != 0)
-				energy_out << '\t';
+	std::unique_ptr<System> system = registry[selected].make(parameters);
+	std::unique_ptr<McMachine> machine = std::make_unique<McMachine>(params, *system);
 
-			energy_out << spiderweb.getEnergy();
-			machine.Sweep(space_layers * space_layers * tau_layers, 0.1);
-		}
-	}
+	// 1900x1200 where the desktop allows it, and never larger than the desktop, since a window
+	// bigger than the screen silently hides the right hand side of the lattice.
+	const sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+	const unsigned int width = std::min(1900u, (unsigned int)(desktop.width * 0.95));
+	const unsigned int height = std::min(1200u, (unsigned int)(desktop.height * 0.90));
 
-	machine.StartSimulation();
+	std::cout << "desktop " << desktop.width << "x" << desktop.height
+		<< ", window " << width << "x" << height << std::endl;
 
-	RenderWindow window(VideoMode(1900, 1200), "Simulation");
+	sf::RenderWindow window(sf::VideoMode(width, height), "McFracton");
 	window.setVerticalSyncEnabled(true);
 	if (!ImGui::SFML::Init(window))
 		return -1;
@@ -62,121 +67,138 @@ int main() {
 	io.Fonts->AddFontFromFileTTF("DMSans-VariableFont_opsz,wght.ttf", 22.0f);
 	ImGui::SFML::UpdateFontTexture();
 
-	ImGuiStyle& style = ImGui::GetStyle();
-	style.ScaleAllSizes(1.5f);
+	ImGui::GetStyle().ScaleAllSizes(1.5f);
 
-	SpiderCanvas canvas(window, { 200.0f, 0.0f });
-	canvas.Initialize(spiderweb, 15.0);
+	const float panel_width = 640.0f;
+	LatticeView view(window);
+	view.setSystem(*system);
+	view.setArea(panel_width, 0.0f, (float)window.getSize().x - panel_width, (float)window.getSize().y);
 
 	bool pause = true;
-	bool draw_monopoles = false;
-	bool draw_energies = false;
-	int field_direction = 0;
-	bool plot_energies = false;
+	float temperature = 1.0f;
+	int updates_per_frame = 2000;
+	bool plot_energy = true;
+	BufferedArray energies(200);
 
 	sf::Clock clock;
-	Int32 elapsedTime = 0;
-
-	float temperature = 0.1f;
-	int layer = 0;
-	int time = 0;
-	BufferedArray energies(200);
 	while (window.isOpen())
 	{
-		Event e;
-		while (window.pollEvent(e))
+		sf::Event event;
+		while (window.pollEvent(event))
 		{
-			ImGui::SFML::ProcessEvent(window, e);
+			ImGui::SFML::ProcessEvent(window, event);
 
-			if (e.type == Event::KeyPressed)
-			{
-				if (e.key.code == Keyboard::Enter)
-				{
-					layer = (layer + 1) % space_layers;
-				}
-				if (e.key.code == Keyboard::Right)
-				{
-					time = (time + 1) % tau_layers;
-				}
-				if (e.key.code == Keyboard::Left)
-				{
-					time = (time - 1 + tau_layers) % tau_layers;
-				}
-
-				if (e.key.code == Keyboard::Space)
-				{
-					pause = !pause;
-				}
-			}
-
-			if (e.type == Event::Closed)
-			{
+			if (event.type == sf::Event::Closed)
 				window.close();
+
+			if (event.type == sf::Event::Resized)
+				view.setArea(panel_width, 0.0f, (float)event.size.width - panel_width,
+					(float)event.size.height);
+
+			// The keys of the old canvases: the arrows step the first sliced axis, Enter the
+			// second, Space pauses. ImGui gets first refusal so typing in a field still works.
+			if (event.type == sf::Event::KeyPressed && !ImGui::GetIO().WantCaptureKeyboard)
+			{
+				switch (event.key.code)
+				{
+				case sf::Keyboard::Right: view.stepSlice(*system, 0, +1); break;
+				case sf::Keyboard::Left:  view.stepSlice(*system, 0, -1); break;
+				case sf::Keyboard::Enter: view.stepSlice(*system, 1, +1); break;
+				case sf::Keyboard::Space: pause = !pause; break;
+				default: break;
+				}
 			}
 		}
 
-		sf::Time dt = clock.restart();
-		elapsedTime += dt.asMilliseconds();
+		ImGui::SFML::Update(window, clock.restart());
 
-		ImGui::SFML::Update(window, dt);
+		// The panel is pinned to the strip the lattice view leaves free, so the two never overlap
+		// and the labels always have room.
+		ImGui::SetNextWindowPos({ 0.0f, 0.0f });
+		ImGui::SetNextWindowSize({ panel_width, (float)window.getSize().y });
+		ImGui::Begin("McFracton", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+		// Widgets take the left half, leaving the right half for the label.
+		ImGui::PushItemWidth(panel_width * 0.42f);
 
-		ImGui::Begin("Monte Carlo Simulation");
+		// --- the system picker, straight out of the registry ---
+		std::vector<const char*> names;
+		for (const mcf::SystemEntry& entry : registry)
+			names.push_back(entry.name.c_str());
+		if (ImGui::Combo("System", &selected, names.data(), (int)names.size()))
+		{
+			parameters.clear();
+			for (const mcf::Parameter& p : registry[selected].parameters)
+				parameters.push_back(p.default_value);
+		}
+
+		for (size_t i = 0; i < registry[selected].parameters.size(); i++)
+		{
+			const mcf::Parameter& p = registry[selected].parameters[i];
+			if (p.is_integer)
+			{
+				int value = (int)parameters[i];
+				if (ImGui::InputInt(p.name.c_str(), &value))
+					parameters[i] = std::max(1, value);
+			}
+			else
+			{
+				float value = (float)parameters[i];
+				if (ImGui::InputFloat(p.name.c_str(), &value, 0.0f, 0.0f, "%.4f"))
+					parameters[i] = value;
+			}
+		}
+
+		if (ImGui::Button("Rebuild"))
+		{
+			// The machine holds a reference to the system, so it goes first.
+			machine.reset();
+			system = registry[selected].make(parameters);
+			machine = std::make_unique<McMachine>(params, *system);
+			view.setSystem(*system);
+			energies = BufferedArray(200);
+			pause = true;
+		}
+
+		ImGui::Separator();
+
+		// --- running ---
 		ImGui::SliderFloat("Temperature", &temperature, 0.01f, 10.0f, "%.5f");
-		//ImGui::SliderFloat("K_s", &squareLattice.K_s, 0.1f, 10.0, "%.3f");
-		//ImGui::SliderFloat("K_t", &squareLattice.K_t, 0.1f, 10.0, "%.3f");
-		ImGui::SliderInt("Field Direction", &field_direction, 0, 2);
-		if (ImGui::Checkbox("Draw Fluxes", &draw_energies))
-		{
-			//draw_monopoles = false;
-		}
-		else if (ImGui::Checkbox("Draw Monopoles", &draw_monopoles))
-		{
-			//draw_energies = false;
-		}
-		ImGui::Checkbox("Plot Energy", &plot_energies);
+		ImGui::SliderInt("Updates / frame", &updates_per_frame, 100, 50000);
 		ImGui::Checkbox("Pause", &pause);
-		ImGui::Checkbox("Overrelax", &params.overrelax);
-		if (plot_energies) {
-			ImGui::PlotLines(
-				"Energy",
-				energies.get_data().data(),
-				energies.get_size(),
-				energies.get_offset(),
-				nullptr,
-				energies.get_min(), energies.get_max(),
-				ImVec2(0, 150)
-			);
+		ImGui::SameLine();
+		ImGui::TextDisabled("(space)");
+
+		ImGui::Separator();
+
+		// --- what is on screen ---
+		view.drawControls(*system);
+
+		ImGui::Separator();
+
+		ImGui::Checkbox("Plot energy", &plot_energy);
+		if (plot_energy)
+		{
+			ImGui::PlotLines("Energy", energies.get_data().data(), energies.get_size(),
+				energies.get_offset(), nullptr, energies.get_min(), energies.get_max(),
+				ImVec2(0, 150));
 		}
+		ImGui::Text("%d variables", system->numVariables());
+
+		ImGui::PopItemWidth();
 		ImGui::End();
 
+		if (!pause)
+			machine->Sweep(updates_per_frame, temperature);
+
+		energies.Push((float)system->getEnergy());
+
 		window.clear();
-
-		if (draw_energies)
-			canvas.DrawEnergy(spiderweb, time, maxEnergy);
-		else
-			canvas.Draw(spiderweb, field_direction, time);
-		if (draw_monopoles) {
-			//spiderweb.Measure(0.1);
-			//canvas.DrawMonopoles(spiderweb, time);
-		}
-
+		view.draw(*system);
 		ImGui::SFML::Render(window);
 		window.display();
-
-		if (!pause) {
-			machine.Sweep(2000, temperature);
-			if (params.overrelax) {
-				//machine.Overrelax(500);
-			}
-		}
-
-		//double current_energy = (cubicLattice.getEnergy() / temperature) / (cubicLattice.nPlaqs);
-		double current_energy = (spiderweb.getEnergy());
-		energies.Push((float)current_energy);
-
-		maxEnergy = std::max(maxEnergy, abs(current_energy / spiderweb.nSites));
-		//std::cout << maxEnergy << std::endl;
 	}
 
+	ImGui::SFML::Shutdown();
 	return 0;
 }

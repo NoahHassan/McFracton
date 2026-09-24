@@ -143,7 +143,7 @@
     <ClCompile Include="core\src\McMachine.cpp" />
     <ClCompile Include="core\src\XYSquare.cpp" />
     <ClCompile Include="gui\Main.cpp" />
-    <ClCompile Include="gui\Shape.cpp" />
+    <ClCompile Include="gui\LatticeView.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\include\AbelianGaugeCube.h" />
@@ -154,16 +154,12 @@
     <ClInclude Include="core\include\McMachine.h" />
     <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\Spiderweb.h" />
+    <ClInclude Include="core\include\SpiderwebInstantons.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\SystemRegistry.h" />
-    <ClInclude Include="core\include\Timer.h" />
-    <ClInclude Include="core\include\Vec2D.h" />
     <ClInclude Include="core\include\XYSquare.h" />
-    <ClInclude Include="gui\Canvas.h" />
-    <ClInclude Include="gui\HyperCanvas.h" />
-    <ClInclude Include="gui\Shape.h" />
-    <ClInclude Include="gui\SpiderCanvas.h" />
-    <ClInclude Include="gui\Square.h" />
+    <ClInclude Include="gui\ColorMaps.h" />
+    <ClInclude Include="gui\LatticeView.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

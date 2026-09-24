@@ -157,9 +157,9 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 			sum += samples[n][column];
 		return sum / N;
 		};
-	// The error bar of the mean: s/sqrt(N), with s^2 using the N-1 convention.
+	// The variance of a single measurement: s^2 = (1/N)Sum(x-mean)^2.
 	auto error_of = [&](int column, double mean) {
-		if (N < 2)
+		if (N < 1)
 			return 0.0;
 		double sum_sqr = 0.0;
 		for (int n = 0; n < N; n++)
@@ -167,7 +167,7 @@ void McMachine::Measure(int n_measurements, int n_measure_sweeps, const double t
 			const double d = samples[n][column] - mean;
 			sum_sqr += d * d;
 		}
-		return std::sqrt(sum_sqr / (double(N) * double(N - 1)));
+		return sum_sqr / double(N);
 		};
 
 	// Log observables

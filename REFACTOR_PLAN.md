@@ -74,7 +74,7 @@ McFracton/                      (repo root)
        Main.cpp         system picker (registry combo + params + Rebuild), controls, energy plot
        LatticeView.h/.cpp  the ONE generic canvas
        ColorMaps.h      GreenRedUniform, NormalMapYellow, BlackWhite, RedWhiteBlue (moved verbatim)
-       BufferedArray.h  (moved from core; GUI-only)
+                        (BufferedArray.h stays in core: McMachine::Thermalize takes one)
 ```
 Net new files: `Lattice.h`, `MathUtil.h`, `SystemRegistry.h` in core; in the GUI, three canvases collapse into one.
 
@@ -286,6 +286,37 @@ Each phase ends with a build, the regression check, and a checkpoint where I ask
   `Shape.*`, `Square.h`, `Vec2D.h`, `Timer.h` (unused).
 - Manual check: every system renders every channel, slicing works along all axes, and the energy plot and pause work.
 
+**As built:**
+- `LatticeView` holds no system type. It reads `getLattice()` for the extents and axis names,
+  `channels()` for what can be drawn, and `fillChannel()` for the values, then draws one plane:
+  two axes on screen, a slider for every remaining axis. That one class covers 2D, 2+1D and 3+1D,
+  so `Canvas`, `HyperCanvas` and `SpiderCanvas` are gone, along with `Shape`, `Square`, `Vec2D`
+  and the unused `Timer`.
+- Cells are a single `sf::VertexArray` of quads with a one pixel gap, instead of a shape object
+  per site. The gap is dropped below 4px cells, where it would eat the picture.
+- `Main.cpp` was rewritten around the registry: a system combo, that system's parameters as typed
+  fields, and Rebuild. It names no system class, so a new registry entry appears in the GUI with
+  no GUI edit at all. The old file's annealing run and shock-freeze experiment are gone - that is
+  `mcf_run`'s job now - leaving the window for watching a system at one temperature.
+- The overrelax checkbox and its commented-out call are removed, as agreed.
+- `ColorMaps.h` holds the four maps the three canvases each carried a copy of. One addition: a
+  continuous red-white-blue for `Signed` channels, because the flux is a continuous quantity and
+  the integer map's three flat colours would throw its magnitude away. The integer map is kept
+  unchanged for `Integer` channels, and the overlay uses it to mark nonzero cells.
+- `Magnitude` and `Signed` channels have no natural range, so their scale grows to the largest
+  value seen and resets when the channel or system changes - the running maximum the old canvas
+  kept by hand for the energy view.
+- **Deviation from the plan:** `BufferedArray` stays in core. The plan called it GUI-only, but
+  `McMachine::Thermalize` takes one, so moving it would have broken the core.
+- The window is capped to the desktop and the process is made DPI aware on Windows. Without that,
+  a scaled display gives the process a coordinate space smaller than the screen while SFML still
+  reports the screen's true size, and the right of the lattice falls off the edge.
+- Verified here: both builds; the regression still bit-identical; the GUI launches, and every one
+  of the 17 channels across all five systems returns exactly `lattice.size()` finite values, which
+  is the contract `LatticeView` relies on and which the regression never touches.
+- **Still yours to check by hand**, as this phase always intended: that each channel *looks* right,
+  that slicing moves through the axis you expect, and that the keys and the energy plot behave.
+
 ### Phase 6: Documentation
 - `README.md`: how to build and run both ways — open `McFracton.sln` in Visual Studio for the GUI, and
   `cmake --preset linux-release` on the cluster for the headless runs. Nothing is deleted; the solution, the
@@ -323,6 +354,30 @@ The twist that defines Υ is a phase on the spin, `φ → φ + δ`, not a shift 
 ### Still open, for you (I will not touch these)
 2. QXYSquare is out of scope, and its `Measure` still throws. It is excluded from the regression tests and is left
    untouched; say the word if you'd rather delete it.
+
+**Spiderweb specific heat — checked 2026-09-22, no physics bug found.** `d⟨H⟩/dT` from the logged `Energy`
+and `Var(H)/T²` from the logged `DEnergy` agree over `T ∈ [0.05, 100]` at L=4 and L=8, at KU = 0.1, 0.5 and
+2.0; both peak near T ≈ 0.3 and both reach the equipartition plateau `C = N_sites − 1` that a Hessian mode
+count predicts independently (126 massive modes and 64+2 gauge-flat directions at L=4, 1022 and 512+2 at
+L=8). `proposeUpdate` reproduces the `getEnergy()` difference to ~1e-14 at eight sizes including `L ≠ N_t`
+and `L ≥ 5`, where the ±2 stencil cannot alias — so the Cube-style inconsistency fixed in `94bdb49` is not
+present. The spiderweb bug that commit's message refers to *was* real (`proposeSiteFlip` summed only the
+terms anchored at the changed site) and was fixed by Noah before `fa44d03`.
+
+**What does break a specific heat, and needs a decision.** Phase 0 turned the `D*` columns from the variance
+into the standard error `s/√N` (A.4 below). The formula `C = DE/T²`, which was correct for pre-Phase-0 logs,
+now evaluates to `√C/(√N·T)` and so rises like `1/T` instead of saturating — the "one diverges, the other
+saturates" symptom, with no physics behind it. Today's correct reading is `C = n_measurements · DEnergy²/T²`.
+Suggested: one extra `#` provenance line in `McMachine::StartSimulation` naming the error convention and
+`n_measurements`, which no parser reading with `comment='#'` would notice and which the regression never
+touches (it drives `Sweep`/`measure` directly and opens no annealing log). Full write-up, data and scripts:
+`SPECIFIC_HEAT_REPORT.md` and `results/specific_heat_check/`. Not implemented — awaiting agreement.
+
+Two non-physics notes from the same investigation, also unimplemented:
+`McMachine`'s constructor initialises `current_measurement_sweeps` to `initial_therm_sweeps`, ignoring
+`max_measure_sweeps` until after the first `Measure`, so the first temperature can cost more than the whole
+rest of the run; and `updates_per_sweep` is an absolute count, so at L=16, N_t=16 one "sweep" touches 40% of
+the 12288 variables and `n_sweeps` means something different at every size.
 
 ### Numerics being changed in Phase 0 (agreed)
 3. **Adaptive step size δ.** Tuning δ toward ~50% acceptance is right, and the update rule has its fixed point

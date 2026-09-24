@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "MathUtil.h"
+#include "SpiderwebInstantons.h"
 
 // A fields are treated as:
 // 0: A0
@@ -82,7 +83,7 @@ double Spiderweb::accumulateLocalEnergies(std::vector<double>& localEnergies) co
 		}
 
 		double b_val = cos(kPi * b_sum) / 2.0;
-		double local_energy = cos(kPi * e_sum_xx) / (2.0 * KU) + cos(kPi * e_sum_xy) / (2.0 * KU) - b_val;
+		double local_energy = -cos(kPi * e_sum_xx) / (2.0 * KU) - cos(kPi * e_sum_xy) / (2.0 * KU) - b_val;
 		energy += local_energy;
 
 		localEnergies[n_site] = local_energy;
@@ -118,7 +119,7 @@ double Spiderweb::proposeUpdate(int index, double delta) const
 				if (term.first == index)
 					new_sum += term.second * delta;
 			}
-			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
+			d_energy += prefactor * (-cos(kPi * new_sum) + cos(kPi * old_sum));
 		};
 	auto accumulate_xy = [&](int anchor_field_index, double prefactor)
 		{
@@ -131,7 +132,7 @@ double Spiderweb::proposeUpdate(int index, double delta) const
 				if (term.first == index)
 					new_sum += term.second * delta;
 			}
-			d_energy += prefactor * (cos(kPi * new_sum) - cos(kPi * old_sum));
+			d_energy += prefactor * (-cos(kPi * new_sum) + cos(kPi * old_sum));
 		};
 	auto accumulate_b = [&](int anchor_field_index, double prefactor)
 		{
@@ -201,7 +202,9 @@ std::vector<Channel> Spiderweb::channels() const
 	return { { "A_0", ChannelKind::Angle },
 			 { "A_xx", ChannelKind::Angle },
 			 { "A_xy", ChannelKind::Angle },
-			 { "local energy", ChannelKind::Magnitude } };
+			 { "local energy", ChannelKind::Magnitude },
+			 { "instantons m", ChannelKind::Integer },
+			 { "Z4 steps", ChannelKind::Integer } };
 }
 
 void Spiderweb::fillChannel(int channel, std::vector<double>& out) const
@@ -209,6 +212,13 @@ void Spiderweb::fillChannel(int channel, std::vector<double>& out) const
 	if (channel == 3)
 	{
 		out = getLocalEnergies();
+		return;
+	}
+	// Instanton diagnostics, see SpiderwebInstantons.h. Pure measurements of the current fields.
+	if (channel == 4 || channel == 5)
+	{
+		const std::vector<int> values = channel == 4 ? mcf::spiderwebInstantons(*this) : mcf::spiderwebZ4Steps(*this);
+		out.assign(values.begin(), values.end());
 		return;
 	}
 
