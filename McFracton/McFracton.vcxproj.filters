@@ -42,6 +42,9 @@
     <ClCompile Include="core\src\Spiderweb.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="core\src\Spiderweb_corrected.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\include\McMachine.h">
@@ -84,6 +87,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="core\include\SpiderwebInstantons.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="core\include\Spiderweb_corrected.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

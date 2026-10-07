@@ -16,10 +16,54 @@ void LatticeView::setSystem(const System& system)
 	channel = 0;
 	overlay = -1;
 	slice.assign(lattice.rank(), 0);
-	magnitude_scale = 1e-9;
-	signed_scale = 1e-9;
+	fixScales(system);
 	values.clear();
 	overlay_values.clear();
+}
+
+void LatticeView::fixScales(const System& system)
+{
+	const std::vector<Channel> channels = system.channels();
+	scales.assign(channels.size(), Scale{});
+	for (int c = 0; c < (int)channels.size(); c++)
+	{
+		const ChannelKind kind = channels[c].kind;
+		if (kind != ChannelKind::Magnitude && kind != ChannelKind::Signed)
+			continue;
+
+		Scale& scale = scales[c];
+		if (channels[c].low != channels[c].high)
+		{
+			scale.low = channels[c].low;
+			scale.high = channels[c].high;
+			continue;
+		}
+
+		// No declared range: take it once from the state the system starts in.
+		double low = 0.0, high = 0.0;
+		bool any = false;
+		system.fillChannel(c, values);
+		for (double v : values)
+		{
+			if (std::isnan(v))
+				continue;
+			const double x = kind == ChannelKind::Signed ? std::abs(v) : v;
+			low = any ? std::min(low, x) : x;
+			high = any ? std::max(high, x) : x;
+			any = true;
+		}
+		// A uniform start (a cold one) gives nothing to measure; the default unit range stays.
+		if (any && high - low > 1e-9 * std::max({ 1.0, std::abs(low), std::abs(high) }))
+		{
+			scale.low = low;
+			scale.high = high;
+		}
+		else if (any && kind == ChannelKind::Magnitude)
+		{
+			scale.low = low;
+			scale.high = low + 1.0;
+		}
+	}
 }
 
 void LatticeView::setArea(float x, float y, float width, float height)
@@ -50,8 +94,33 @@ void LatticeView::stepSlice(const System& system, int which, int offset)
 	slice[axis] = (slice[axis] + offset % extent + extent) % extent;
 }
 
+void LatticeView::stepChannel(const System& system, int offset)
+{
+	const int n_channels = (int)system.channels().size();
+	if (n_channels == 0)
+		return;
+
+	channel = (channel + offset % n_channels + n_channels) % n_channels;
+}
+
+void LatticeView::stepOverlay(const System& system, int offset)
+{
+	const int n_channels = (int)system.channels().size();
+	if (n_channels == 0)
+		return;
+
+	// "none" is one more state in front of the channels, so the item index is overlay + 1.
+	const int n_items = n_channels + 1;
+	const int item = ((overlay + 1) + offset % n_items + n_items) % n_items;
+	overlay = item - 1;
+}
+
 sf::Color LatticeView::colorOf(ChannelKind kind, double value) const
 {
+	if (std::isnan(value))
+		return mcf::NoValue();
+
+	const Scale& scale = scales[channel];
 	switch (kind)
 	{
 	case ChannelKind::Angle:
@@ -59,10 +128,10 @@ sf::Color LatticeView::colorOf(ChannelKind kind, double value) const
 	case ChannelKind::Integer:
 		return mcf::RedWhiteBlue((int)std::lround(value));
 	case ChannelKind::Signed:
-		return mcf::RedWhiteBlue(value, signed_scale);
+		return mcf::RedWhiteBlue(value, scale.high);
 	case ChannelKind::Magnitude:
 	default:
-		return mcf::BlackWhite(value / magnitude_scale);
+		return mcf::BlackWhite((value - scale.low) / (scale.high - scale.low));
 	}
 }
 
@@ -78,11 +147,7 @@ void LatticeView::drawControls(const System& system)
 	for (const Channel& c : channels)
 		channel_names.push_back(c.name.c_str());
 
-	if (ImGui::Combo("Channel", &channel, channel_names.data(), (int)channel_names.size()))
-	{
-		magnitude_scale = 1e-9;
-		signed_scale = 1e-9;
-	}
+	ImGui::Combo("Channel", &channel, channel_names.data(), (int)channel_names.size());
 
 	std::vector<const char*> overlay_names;
 	overlay_names.push_back("none");
@@ -113,6 +178,8 @@ void LatticeView::drawControls(const System& system)
 				axis_x = previous_y;
 		}
 	}
+
+	ImGui::TextDisabled("up/down step the channel, ctrl+up/down the overlay");
 
 	ImGui::SliderFloat("Zoom", &zoom, 0.3f, 1.25f, "%.2f");
 
@@ -148,18 +215,10 @@ void LatticeView::draw(const System& system)
 			return;
 	}
 
-	// The scales for the two kinds that have no fixed range grow to fit what has been seen.
+	// The colour ranges were fixed in setSystem; this only guards against indexing past them.
 	const ChannelKind kind = channels[channel].kind;
-	if (kind == ChannelKind::Magnitude || kind == ChannelKind::Signed)
-	{
-		double largest = 0.0;
-		for (double v : values)
-			largest = std::max(largest, std::abs(v));
-		if (kind == ChannelKind::Magnitude)
-			magnitude_scale = std::max(magnitude_scale, largest);
-		else
-			signed_scale = std::max(signed_scale, largest);
-	}
+	if (scales.size() != channels.size())
+		return;
 
 	const int nx = lattice.extent(axis_x);
 	const int ny = lattice.extent(axis_y);
@@ -197,7 +256,7 @@ void LatticeView::draw(const System& system)
 				// An overlay only marks the cells where it is nonzero, leaving the rest of the
 				// picture alone. This is what "draw the monopoles on top" used to do by hand.
 				const double marker = overlay_values[site];
-				if (marker != 0.0)
+				if (marker != 0.0 && !std::isnan(marker))
 					color = mcf::RedWhiteBlue(marker > 0.0 ? 1 : -1);
 			}
 

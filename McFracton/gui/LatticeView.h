@@ -24,7 +24,9 @@ public:
 
 	/// <summary>
 	/// Point the view at a system. Resets the axes, the channel and every slice, so it is also what
-	/// is called after the user rebuilds with different parameters.
+	/// is called after the user rebuilds with different parameters. It also fixes every channel's
+	/// colour range, so it has to be called after the system has been randomised (McMachine's
+	/// constructor does that).
 	/// </summary>
 	void setSystem(const System& system);
 
@@ -43,6 +45,17 @@ public:
 	void stepSlice(const System& system, int which, int offset);
 
 	/// <summary>
+	/// Steps the displayed channel, for the up and down arrows. Wraps.
+	/// </summary>
+	void stepChannel(const System& system, int offset);
+
+	/// <summary>
+	/// Steps the overlay, for Ctrl with the up and down arrows. The cycle includes "none", so on a
+	/// system with n channels it runs through n + 1 states and wraps at both ends.
+	/// </summary>
+	void stepOverlay(const System& system, int offset);
+
+	/// <summary>
 	/// The screen rectangle the lattice is drawn into. Main sets this to whatever the control
 	/// panel leaves over.
 	/// </summary>
@@ -53,6 +66,9 @@ private:
 	std::vector<int> slicedAxes(const System& system) const;
 	// Colour for one value of the current channel.
 	sf::Color colorOf(ChannelKind kind, double value) const;
+	// Sets every channel's colour range: the one the system declares, or else one measured from
+	// the system's current state.
+	void fixScales(const System& system);
 
 private:
 	sf::RenderWindow& window;
@@ -70,12 +86,17 @@ private:
 	int overlay = -1;   // -1 means no overlay.
 	// Scales how much of the available area the lattice takes, so the default size is a starting
 	// point rather than something to recompile.
-	float zoom = 1.0f;
+	float zoom = 0.5f;
 
-	// Magnitude channels have no natural range, so the scale grows to the largest value seen and
-	// is reset whenever the channel or the system changes - the running maximum the old canvas kept.
-	double magnitude_scale = 1e-9;
-	double signed_scale = 1e-9;
+	// The colour range of each channel, fixed when the system is set and never touched while it
+	// runs, so a picture means the same thing at every moment and settling shows up as the colours
+	// fading. A Magnitude channel runs from black at low to white at high; a Signed one saturates
+	// at +-high and ignores low.
+	struct Scale {
+		double low = 0.0;
+		double high = 1.0;
+	};
+	std::vector<Scale> scales;
 
 	float area_x = 0.0f;
 	float area_y = 0.0f;

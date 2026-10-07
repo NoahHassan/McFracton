@@ -366,3 +366,5 @@ build/
 results/
 *.tsv
 McFracton/imgui.ini
+CLAUDE.md
+REFACTOR_PLAN.md

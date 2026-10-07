@@ -73,6 +73,7 @@ std::vector<SystemSpec> Systems()
 	specs.push_back({ "AbelianGaugeSquare", { 6, 6 }, true });
 	specs.push_back({ "AbelianGaugeCube", { 4, 4 }, true });
 	specs.push_back({ "Spiderweb", { 6, 6, 1.0 }, false });
+	specs.push_back({ "Spiderweb_corrected", { 6, 6, 1.0 }, false });
 	return specs;
 }
 
@@ -276,7 +277,7 @@ std::vector<std::string> KnownKeys(const mcf::SystemEntry& entry)
 	std::vector<std::string> keys = { "system", "seed", "out", "git_hash",
 		"t_max", "t_min", "t_fac", "delta", "updates_per_sweep", "initial_therm_sweeps",
 		"max_therm_sweeps", "max_measure_sweeps", "n_measurements", "overrelax",
-		"log_energies", "updates_per_overrelaxation" };
+		"log_energies", "updates_per_overrelaxation", "ground_state_start" };
 	for (const mcf::Parameter& p : entry.parameters)
 		keys.push_back(p.name);
 	return keys;
@@ -396,6 +397,18 @@ int RunConfigured(const Settings& settings)
 			std::cerr << "log_energies: " << error << '\n';
 			return 2;
 		}
+	if (const std::string* text = Lookup(settings, "ground_state_start"))
+		if (!ParseBool(*text, params.ground_state_start, error))
+		{
+			std::cerr << "ground_state_start: " << error << '\n';
+			return 2;
+		}
+	// t_fac < 1 cools from t_max to t_min, t_fac > 1 heats from t_min to t_max; 1 would never end.
+	if (!(params.t_fac > 0.0) || params.t_fac == 1.0 || !(params.t_min > 0.0) || !(params.t_max >= params.t_min))
+	{
+		std::cerr << "need t_fac > 0 and != 1, and 0 < t_min <= t_max\n";
+		return 2;
+	}
 
 	unsigned int seed = 0;   // 0 still means "draw a fresh one and record it".
 	if (!ReadNumber(settings, "seed", seed, error))
@@ -422,7 +435,16 @@ int RunConfigured(const Settings& settings)
 		}
 	}
 
-	std::unique_ptr<System> system = entry->make(values);
+	std::unique_ptr<System> system;
+	try
+	{
+		system = entry->make(values);
+	}
+	catch (const std::invalid_argument& e)
+	{
+		std::cerr << e.what() << '\n';
+		return 2;
+	}
 	McMachine machine(params, *system, logfile.string(), seed);
 
 	// Provenance McMachine cannot know by itself. The git hash is passed in rather than compiled

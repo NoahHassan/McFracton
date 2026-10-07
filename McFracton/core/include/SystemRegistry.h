@@ -9,6 +9,7 @@
 #include "AbelianGaugeSquare.h"
 #include "QXYSquare.h"
 #include "Spiderweb.h"
+#include "Spiderweb_corrected.h"
 #include "System.h"
 #include "XYSquare.h"
 
@@ -35,7 +36,8 @@ struct Parameter {
 struct SystemEntry {
 	std::string name;
 	std::vector<Parameter> parameters;
-	// Values are in the same order as `parameters`, already defaulted by the caller.
+	// Values are in the same order as `parameters`, already defaulted by the caller. A system may
+	// refuse values it cannot be built from by throwing std::invalid_argument.
 	std::function<std::unique_ptr<System>(const std::vector<double>&)> make;
 };
 
@@ -75,6 +77,13 @@ inline const std::vector<SystemEntry>& systemRegistry()
 			{ { "linear_size", 16, true }, { "temporal_size", 16, true }, { "KU", 0.5, false } },
 			[](const std::vector<double>& p) -> std::unique_ptr<System> {
 				return std::make_unique<Spiderweb>((int)p[0], (int)p[1], p[2]);
+			}
+		},
+		{
+			"Spiderweb_corrected",
+			{ { "linear_size", 24, true }, { "temporal_size", 16, true }, { "KU", 1.0, false } },
+			[](const std::vector<double>& p) -> std::unique_ptr<System> {
+				return std::make_unique<Spiderweb_corrected>((int)p[0], (int)p[1], p[2]);
 			}
 		},
 	};

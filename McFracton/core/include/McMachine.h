@@ -25,6 +25,7 @@ public:
 		bool overrelax = false;
 		bool log_energies = false;
 		int updates_per_overrelaxation = 10000;
+		bool ground_state_start = false;
 	};
 	struct AutoCorrResult {
 		double tau_int;

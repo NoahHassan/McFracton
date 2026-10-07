@@ -5,6 +5,8 @@
 // the picker on its own, and LatticeView draws whatever channels it declares.
 //
 // Annealing runs belong to mcf_run; this is for looking at a system at one temperature.
+//
+//   mcf_gui [system]      start on that registered system instead of Spiderweb_corrected
 
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
@@ -13,6 +15,7 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -26,7 +29,7 @@
 #include <windows.h>
 #endif
 
-int main()
+int main(int argc, char** argv)
 {
 	// Without this, Windows hands a scaled display (150% here) a coordinate space smaller than the
 	// screen while SFML still reports the screen's true size, so a window sized from the latter
@@ -38,7 +41,12 @@ int main()
 
 	const std::vector<mcf::SystemEntry>& registry = mcf::systemRegistry();
 
+	// Starts on Spiderweb_corrected unless the first argument names another system: mcf_gui XYSquare
+	const std::string start_system = argc > 1 ? argv[1] : "Spiderweb_corrected";
 	int selected = 0;
+	for (size_t i = 0; i < registry.size(); i++)
+		if (registry[i].name == start_system)
+			selected = (int)i;
 	std::vector<double> parameters;
 	for (const mcf::Parameter& p : registry[selected].parameters)
 		parameters.push_back(p.default_value);
@@ -75,6 +83,7 @@ int main()
 	view.setArea(panel_width, 0.0f, (float)window.getSize().x - panel_width, (float)window.getSize().y);
 
 	bool pause = true;
+	std::string build_error;
 	float temperature = 1.0f;
 	int updates_per_frame = 2000;
 	bool plot_energy = true;
@@ -96,7 +105,8 @@ int main()
 					(float)event.size.height);
 
 			// The keys of the old canvases: the arrows step the first sliced axis, Enter the
-			// second, Space pauses. ImGui gets first refusal so typing in a field still works.
+			// second, Space pauses. Up and down step the channel, and with Ctrl held the overlay.
+			// ImGui gets first refusal so typing in a field still works.
 			if (event.type == sf::Event::KeyPressed && !ImGui::GetIO().WantCaptureKeyboard)
 			{
 				switch (event.key.code)
@@ -105,6 +115,15 @@ int main()
 				case sf::Keyboard::Left:  view.stepSlice(*system, 0, -1); break;
 				case sf::Keyboard::Enter: view.stepSlice(*system, 1, +1); break;
 				case sf::Keyboard::Space: pause = !pause; break;
+				// Down moves down the list in the combo, which is the next channel.
+				case sf::Keyboard::Down:
+					if (event.key.control) view.stepOverlay(*system, +1);
+					else                   view.stepChannel(*system, +1);
+					break;
+				case sf::Keyboard::Up:
+					if (event.key.control) view.stepOverlay(*system, -1);
+					else                   view.stepChannel(*system, -1);
+					break;
 				default: break;
 				}
 			}
@@ -151,14 +170,26 @@ int main()
 
 		if (ImGui::Button("Rebuild"))
 		{
-			// The machine holds a reference to the system, so it goes first.
-			machine.reset();
-			system = registry[selected].make(parameters);
-			machine = std::make_unique<McMachine>(params, *system);
-			view.setSystem(*system);
-			energies = BufferedArray(200);
-			pause = true;
+			// A system may refuse its parameters; then the one on screen simply stays.
+			try
+			{
+				std::unique_ptr<System> rebuilt = registry[selected].make(parameters);
+				// The machine holds a reference to the system, so it goes first.
+				machine.reset();
+				system = std::move(rebuilt);
+				machine = std::make_unique<McMachine>(params, *system);
+				view.setSystem(*system);
+				energies = BufferedArray(200);
+				pause = true;
+				build_error.clear();
+			}
+			catch (const std::invalid_argument& e)
+			{
+				build_error = e.what();
+			}
 		}
+		if (!build_error.empty())
+			ImGui::TextWrapped("%s", build_error.c_str());
 
 		ImGui::Separator();
 

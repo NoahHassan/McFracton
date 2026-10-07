@@ -92,6 +92,7 @@
     <ClCompile Include="core\src\McMachine.cpp" />
     <ClCompile Include="core\src\QXYSquare.cpp" />
     <ClCompile Include="core\src\Spiderweb.cpp" />
+    <ClCompile Include="core\src\Spiderweb_corrected.cpp" />
     <ClCompile Include="core\src\System.cpp" />
     <ClCompile Include="core\src\XYSquare.cpp" />
   </ItemGroup>
@@ -105,6 +106,7 @@
     <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\Spiderweb.h" />
     <ClInclude Include="core\include\SpiderwebInstantons.h" />
+    <ClInclude Include="core\include\Spiderweb_corrected.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\SystemRegistry.h" />
     <ClInclude Include="core\include\XYSquare.h" />

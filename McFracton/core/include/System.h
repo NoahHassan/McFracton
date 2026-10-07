@@ -14,10 +14,17 @@ enum class ChannelKind { Angle, Signed, Integer, Magnitude };
 
 /// <summary>
 /// One scalar field over the lattice that a system can hand out for drawing.
+///
+/// low and high are the colour range of a Signed or Magnitude channel, for a system that knows it
+/// in advance: a Signed channel is white at 0 and saturates at +-high, a Magnitude channel runs
+/// from black at low to white at high. Left equal, the system declares no range, and the view
+/// measures one from the state it is first shown and then holds it.
 /// </summary>
 struct Channel {
 	std::string name;
 	ChannelKind kind;
+	double low = 0.0;
+	double high = 0.0;
 };
 
 /// <summary>
@@ -48,6 +55,9 @@ public:
 	// Initial configuration. McMachine calls this once, before the first sweep. The default is a
 	// cold start (every variable 0), which is what XYSquare has always started from.
 	virtual void randomize(std::mt19937& rng) {};
+	// Puts the system into a ground state, for runs that heat up from it. A system that has not
+	// said what its ground state is has to fail loudly rather than start from something else.
+	virtual void setGroundState() { throw std::logic_error("setGroundState not implemented"); };
 
 	// Metropolis
 	virtual double getEnergy() const = 0;
@@ -62,6 +72,7 @@ public:
 	virtual std::vector<double> measure(double temperature) const = 0;
 
 	// Visualisation. fillChannel writes one value per lattice site, so out.size() == lattice.size().
+	// A site the channel's field does not live on gets NaN, which the view leaves undrawn.
 	virtual std::vector<Channel> channels() const = 0;
 	virtual void fillChannel(int channel, std::vector<double>& out) const = 0;
 protected:

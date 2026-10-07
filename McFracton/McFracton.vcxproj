@@ -136,6 +136,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="core\src\Spiderweb.cpp" />
+    <ClCompile Include="core\src\Spiderweb_corrected.cpp" />
     <ClCompile Include="core\src\AbelianGaugeCube.cpp" />
     <ClCompile Include="core\src\AbelianGaugeSquare.cpp" />
     <ClCompile Include="core\src\QXYSquare.cpp" />
@@ -155,6 +156,7 @@
     <ClInclude Include="core\include\QXYSquare.h" />
     <ClInclude Include="core\include\Spiderweb.h" />
     <ClInclude Include="core\include\SpiderwebInstantons.h" />
+    <ClInclude Include="core\include\Spiderweb_corrected.h" />
     <ClInclude Include="core\include\System.h" />
     <ClInclude Include="core\include\SystemRegistry.h" />
     <ClInclude Include="core\include\XYSquare.h" />

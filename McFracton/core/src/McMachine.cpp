@@ -22,6 +22,10 @@ McMachine::McMachine(NumericalParams params, System& system, std::string filenam
 
 	// The initial configuration is the first thing drawn from the stream, before any sweep.
 	system.randomize(rng);
+	// A ground state start still draws the random configuration first, so the stream that drives
+	// the sweeps is the same for both kinds of start.
+	if (params.ground_state_start)
+		system.setGroundState();
 
 	logfile_name = filename;
 }
@@ -78,7 +82,8 @@ void McMachine::StartSimulation()
 		<< "\tmax_measure_sweeps\t" << params.max_measure_sweeps
 		<< "\tn_measurements\t" << params.n_measurements << '\n';
 	logfile << "# delta\t" << params.delta << "\toverrelax\t" << params.overrelax
-		<< "\tupdates_per_overrelaxation\t" << params.updates_per_overrelaxation << '\n';
+		<< "\tupdates_per_overrelaxation\t" << params.updates_per_overrelaxation
+		<< "\tground_state_start\t" << params.ground_state_start << '\n';
 	logfile << "# variables\t" << system.numVariables() << '\n';
 
 	// The column-header line stays the first non-comment line, so parsers reading with
@@ -94,10 +99,13 @@ void McMachine::StartSimulation()
 
 	std::cout << "Initial Thermalization" << std::endl;
 
-	Thermalize(current_nSweeps, energies, params.t_max);
+	// t_fac < 1 cools from t_max down to t_min; t_fac > 1 heats from t_min up to t_max.
+	const bool heating = params.t_fac > 1.0;
+	double temperature = heating ? params.t_min : params.t_max;
 
-	double temperature = params.t_max;
-	while (temperature > params.t_min)
+	Thermalize(current_nSweeps, energies, temperature);
+
+	while (heating ? temperature < params.t_max : temperature > params.t_min)
 	{
 		Thermalize(current_nSweeps, energies, temperature);
 
