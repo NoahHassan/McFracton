@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <random>
+#include <vector>
 
 #include "Lattice.h"
 #include "System.h"
@@ -45,6 +47,7 @@ public:
 	void setGroundState() override;
 	double getEnergy() const override;
 	std::vector<double> getLocalEnergies() const;
+	double localEnergy(int site_index) const;
 	double proposeUpdate(int index, double delta) const override;
 	std::vector<std::string> observableNames() const override;
 	std::vector<double> measure(double temperature) const override;
@@ -80,6 +83,79 @@ public:
 	const int nSites;
 	const double KU;
 private:
-	double sum(const Stencil& stencil) const;
+	enum TermKind { kMagnetic = 0, kElectricXX = 1, kElectricXY = 2 };
+	struct TermSite { int kind; int site; };
 	int shifted(int site_index, int dx, int dy, int dt) const;
+	Stencil stencil(int kind, int site_index) const;
+	// The site a variable sits on: its own for A^xy and A^xx, the type 1 site of its pair for A^0.
+	int variableSite(int index) const;
+	// The terms variable `index` enters, in the order proposeUpdate adds them up:
+	//   A^0:  4 x E^xy (s+x+y, s-x+y, s-x-y, s+x-y), then 4 x E^xx (s+x, s-x, s+y, s-y)
+	//   A^xy: 2 x E^xy (s, s-t),                      then 4 x B    (s+x, s-x, s+y, s-y)
+	//   A^xx: 2 x E^xx (s, s-t),                      then 4 x B    (s+x+y, s-x+y, s-x-y, s+x-y)
+	int couplingTerms(int index, std::array<TermSite, 8>& terms) const;
+	void buildPatterns();
+
+	// What one pass over the lattice gives the observables: the energy, the sums of cos and sin of
+	// every kind of term (helicity moduli) and, if asked for, B and E wrapped onto the circle
+	// (instantons).
+	struct LatticeSums {
+		double energy = 0.0;
+		double cos_b = 0.0, sin_b = 0.0, cos_xx = 0.0, sin_xx = 0.0, cos_xy = 0.0, sin_xy = 0.0;
+		std::vector<double> b, e;
+	};
+	void latticePass(LatticeSums& sums, bool helicity, bool wrapped) const;
+	double type1Energy(double cos_xy) const;
+	double type2Energy(double cos_b, double cos_xx) const;
+	int instantonAt(int type2_site, const LatticeSums& sums) const;
+	double instantonDensity(const LatticeSums& sums) const;
+	std::array<double, 3> helicitySamples(const LatticeSums& sums, double temperature) const;
+private:
+	// Stencil patterns, built once in the constructor from the stencil functions above, so the
+	// model is still defined in exactly one place, and checked against them for every variable and
+	// every site. They only replace index arithmetic: every sum runs over the same variables, with
+	// the same coefficients, in the same order as before, so all results are bit-identical to
+	// building the stencils on the fly.
+	//
+	// The model is translation invariant, so the terms of one kind of variable (or the stencil of
+	// one kind of term) are the same everywhere up to a shift. A pattern stores them as offsets
+	// (dx, dy, dt) from the variable's site, and the index of a field is found from the site's
+	// coordinates through the small wrap tables below. Unlike a table per variable this needs no
+	// memory that grows with the lattice, so an update reads nothing but the fields themselves.
+	struct Tap {
+		int dx = 0, dy = 0, dt = 0;
+		int a0 = 0;          // 1: the A^0 of that site, 0: its tensor component
+		double coefficient = 0.0;
+	};
+	struct Term {
+		int kind = kMagnetic;
+		int size = 0;
+		double weight = 0.0; // coefficient of the updated variable in this term
+		std::array<Tap, 8> taps{};
+	};
+	struct Pattern {
+		int size = 0;
+		std::array<Term, 8> terms{};
+	};
+	// Where wrap tables have to be read for a site: x, y and t already folded in.
+	struct Origin { const int* x; const int* y; const int* t; };
+	Origin origin(int site_index) const;
+	Origin variableOrigin(int index, int& pattern) const;
+	static constexpr int kMagneticSize = 8;
+	static constexpr int kElectricSize = 6;
+	template <int N>
+	double tapSum(const Term& term, const Origin& o) const;
+	double termSum(const Term& term, const Origin& o) const;
+	// n / linear_size as a multiplication, for 0 <= n < nSites; buildPatterns checks it for all n.
+	int divideByL(int n) const { return int((std::uint64_t(n) * l_reciprocal) >> 40); }
+	std::uint64_t l_reciprocal = 0;
+
+	std::array<Pattern, 3> variable_patterns; // A^0, A^xy, A^xx: the terms each one enters
+	std::array<Term, 3> term_patterns;        // B, E^xx, E^xy around their own site
+	// wrap_x[reach_xy + x + dx] is (x + dx) mod L, wrap_y likewise times L, wrap_t times L^2.
+	int reach_xy = 0, reach_t = 0;
+	std::vector<int> wrap_x, wrap_y, wrap_t;
+	// Neighbour of every site one step along each axis: neighbors[6 * site + 2 * axis + (step > 0)].
+	std::vector<int> neighbors;
+	std::vector<unsigned char> type1;
 };

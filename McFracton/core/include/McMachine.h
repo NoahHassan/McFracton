@@ -26,6 +26,11 @@ public:
 		bool log_energies = false;
 		int updates_per_overrelaxation = 10000;
 		bool ground_state_start = false;
+		// > 0: during the measurement phase, measure after every sweep as well and write the means of
+		// every observable and of its square over blocks of bin_size sweeps to a second file,
+		// <log>_bins.txt (see binsFileName). The chain and the main log are the same either way:
+		// measuring draws no random numbers.
+		int bin_size = 0;
 	};
 	struct AutoCorrResult {
 		double tau_int;
@@ -42,7 +47,11 @@ public:
 	void Sweep(int nUpdates, const double temperature, bool adapt_step = true);
 	void Overrelax(int nUpdates);
 	void StartSimulation();
+	// The bins file that goes with a log: name.txt -> name_bins.txt, anything else gets _bins.txt appended.
+	static std::string binsFileName(const std::string& log_name);
 private:
+	void writeHeader(std::ofstream& out);
+	void writeBin(double temperature, int bin, int n_sweeps, const std::vector<double>& sum, const std::vector<double>& sum_sq);
 	void Thermalize(int maxSweeps, BufferedArray& energies, const double temperature);
 	void Measure(int n_measurements, int n_measure_sweeps, const double temperature);
 	AutoCorrResult Autocorrelation(const std::vector<double>& data);
@@ -58,6 +67,7 @@ private:
 	std::vector<std::pair<std::string, std::string>> provenance;
 	std::string logfile_name;
 	std::ofstream logfile;
+	std::ofstream binsfile;
 	double acceptance_ratio;
 	int current_nSweeps;
 	int current_measurement_sweeps;

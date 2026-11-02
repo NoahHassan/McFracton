@@ -277,7 +277,7 @@ std::vector<std::string> KnownKeys(const mcf::SystemEntry& entry)
 	std::vector<std::string> keys = { "system", "seed", "out", "git_hash",
 		"t_max", "t_min", "t_fac", "delta", "updates_per_sweep", "initial_therm_sweeps",
 		"max_therm_sweeps", "max_measure_sweeps", "n_measurements", "overrelax",
-		"log_energies", "updates_per_overrelaxation", "ground_state_start" };
+		"log_energies", "updates_per_overrelaxation", "ground_state_start", "bin_size" };
 	for (const mcf::Parameter& p : entry.parameters)
 		keys.push_back(p.name);
 	return keys;
@@ -378,7 +378,8 @@ int RunConfigured(const Settings& settings)
 		&& ReadNumber(settings, "max_therm_sweeps", params.max_therm_sweeps, error)
 		&& ReadNumber(settings, "max_measure_sweeps", params.max_measure_sweeps, error)
 		&& ReadNumber(settings, "n_measurements", params.n_measurements, error)
-		&& ReadNumber(settings, "updates_per_overrelaxation", params.updates_per_overrelaxation, error);
+		&& ReadNumber(settings, "updates_per_overrelaxation", params.updates_per_overrelaxation, error)
+		&& ReadNumber(settings, "bin_size", params.bin_size, error);
 	if (!ok)
 	{
 		std::cerr << error << '\n';
